@@ -9,8 +9,61 @@
   <!-- Hidden video from webcam -->
   <video id="webcam" autoplay playsinline style="display:none;"></video>
 
-  <!-- Game canvas -->
-  <canvas id="gameCanvas" width="800" height="600"></canvas>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">Camera Basketball</div>
+      <div class="topbar-actions">
+        <button id="btnHome" class="btn btn-ghost" type="button">Home</button>
+        <button id="btnAbout" class="btn btn-ghost" type="button">About</button>
+      </div>
+    </header>
+
+    <main class="main">
+      <!-- Main Menu page -->
+      <section id="screenMenu" class="screen screen-active" aria-label="Main menu">
+        <h1 class="title">Camera Basketball</h1>
+        <p class="subtitle">Use your hand + pinch to shoot. Allow camera access when prompted.</p>
+
+        <div class="panel">
+          <div class="panel-title">Choose a level</div>
+          <div class="level-grid">
+            <button id="btnLevelEasy" class="btn btn-primary" type="button">Easy</button>
+            <button id="btnLevelHard" class="btn btn-primary" type="button">Hard (moving rim)</button>
+            <button id="btnLevelInsane" class="btn btn-primary" type="button">Insane (fast rim)</button>
+          </div>
+          <div class="hint">Tip: Move your hand to aim. Pinch thumb+index while moving up to shoot.</div>
+        </div>
+      </section>
+
+      <!-- About page -->
+      <section id="screenAbout" class="screen" aria-label="About">
+        <h2 class="title-sm">About</h2>
+        <div class="panel">
+          <p class="text">
+            This game uses your webcam and hand tracking to control and throw a basketball.
+            No installs needed—just open the page in a modern browser and allow camera access.
+          </p>
+          <ul class="list">
+            <li><b>Move</b>: your hand moves the ball (left-right is inverted).</li>
+            <li><b>Shoot</b>: pinch thumb + index while moving your hand up.</li>
+            <li><b>Levels</b>: higher levels have a moving rim.</li>
+          </ul>
+          <button id="btnBackFromAbout" class="btn btn-primary" type="button">Back</button>
+        </div>
+      </section>
+
+      <!-- Game page -->
+      <section id="screenGame" class="screen" aria-label="Game">
+        <div class="game-wrap">
+          <canvas id="gameCanvas" width="900" height="650"></canvas>
+          <div class="game-controls">
+            <button id="btnRestart" class="btn btn-primary" type="button">Restart</button>
+            <button id="btnExit" class="btn btn-ghost" type="button">Exit to menu</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>

@@ -2,6 +2,22 @@ const video = document.getElementById('webcam');
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
+// Screens / navigation
+const screenMenu = document.getElementById('screenMenu');
+const screenAbout = document.getElementById('screenAbout');
+const screenGame = document.getElementById('screenGame');
+
+const btnHome = document.getElementById('btnHome');
+const btnAbout = document.getElementById('btnAbout');
+const btnBackFromAbout = document.getElementById('btnBackFromAbout');
+
+const btnLevelEasy = document.getElementById('btnLevelEasy');
+const btnLevelHard = document.getElementById('btnLevelHard');
+const btnLevelInsane = document.getElementById('btnLevelInsane');
+
+const btnRestart = document.getElementById('btnRestart');
+const btnExit = document.getElementById('btnExit');
+
 // ---------------------------
 // Game state
 // ---------------------------
@@ -29,6 +45,17 @@ let score = 0;
 // Timer and game state
 let timeLeft = 60; // seconds
 let gameState = 'menu'; // 'menu' | 'playing' | 'gameover'
+
+// Difficulty levels
+const LEVELS = {
+  easy: { id: 'easy', name: 'Easy', hoopMove: 'none', moveSpeed: 0 },
+  hard: { id: 'hard', name: 'Hard', hoopMove: 'x', moveSpeed: 1.6 },
+  insane: { id: 'insane', name: 'Insane', hoopMove: 'x', moveSpeed: 3.0 },
+};
+let currentLevel = LEVELS.easy;
+let levelTime = 60;
+let hoopBase = { x: hoop.x, y: hoop.y };
+let hoopPhase = 0;
 
 // Hand tracking state (normalized 0..1)
 let handX = 0.5;
@@ -138,10 +165,11 @@ function resetBall() {
 
 function startNewGame() {
   score = 0;
-  timeLeft = 60;
+  timeLeft = levelTime;
   gameState = 'playing';
   message = '';
   messageTimer = 0;
+  hoopPhase = 0;
   resetBall();
 }
 
@@ -152,6 +180,63 @@ document.addEventListener('keydown', (e) => {
     }
   }
 });
+
+function showScreen(which) {
+  const all = [screenMenu, screenAbout, screenGame];
+  for (const el of all) {
+    if (!el) continue;
+    el.classList.remove('screen-active');
+  }
+  which?.classList.add('screen-active');
+}
+
+function goMenu() {
+  gameState = 'menu';
+  showScreen(screenMenu);
+}
+
+function goAbout() {
+  showScreen(screenAbout);
+}
+
+function goGame() {
+  showScreen(screenGame);
+}
+
+function setLevel(level) {
+  currentLevel = level;
+  levelTime = 60;
+  hoopBase = { x: canvas.width * 0.7, y: 170 };
+  hoop.w = 100;
+  hoop.h = 8;
+  hoop.x = hoopBase.x;
+  hoop.y = hoopBase.y;
+}
+
+btnHome?.addEventListener('click', () => goMenu());
+btnAbout?.addEventListener('click', () => goAbout());
+btnBackFromAbout?.addEventListener('click', () => goMenu());
+
+btnLevelEasy?.addEventListener('click', () => {
+  setLevel(LEVELS.easy);
+  goGame();
+  startNewGame();
+});
+
+btnLevelHard?.addEventListener('click', () => {
+  setLevel(LEVELS.hard);
+  goGame();
+  startNewGame();
+});
+
+btnLevelInsane?.addEventListener('click', () => {
+  setLevel(LEVELS.insane);
+  goGame();
+  startNewGame();
+});
+
+btnRestart?.addEventListener('click', () => startNewGame());
+btnExit?.addEventListener('click', () => goMenu());
 
 // ---------------------------
 // Game update
@@ -194,6 +279,17 @@ function update(dt) {
 
   if (gameState !== 'playing') {
     return;
+  }
+
+  // Moving rim for higher levels
+  hoopPhase += dt;
+  if (currentLevel.hoopMove === 'x') {
+    const amp = canvas.width * 0.12; // how far left-right
+    hoop.x = hoopBase.x + Math.sin(hoopPhase * currentLevel.moveSpeed) * amp;
+    hoop.y = hoopBase.y;
+  } else {
+    hoop.x = hoopBase.x;
+    hoop.y = hoopBase.y;
   }
 
   // THROW PHYSICS
@@ -413,6 +509,12 @@ function drawHUD() {
   const seconds = Math.ceil(timeLeft);
   ctx.fillText(`Time: ${seconds}s`, canvas.width - 24, 20);
 
+  // Level
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#cbd5e1';
+  ctx.font = '18px system-ui';
+  ctx.fillText(currentLevel.name, canvas.width / 2, 22);
+
   // Info text
   if (gameState === 'playing') {
     ctx.textAlign = 'center';
@@ -476,7 +578,7 @@ function drawOverlays() {
     ctx.font = '20px system-ui';
     ctx.fillStyle = '#9ca3af';
     ctx.fillText(
-      'Press SPACE to play again',
+      'Press Restart (or SPACE) to play again',
       canvas.width / 2,
       canvas.height / 2 + 50
     );
