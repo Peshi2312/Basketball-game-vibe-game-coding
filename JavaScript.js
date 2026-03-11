@@ -1,0 +1,515 @@
+const video = document.getElementById('webcam');
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+// ---------------------------
+// Game state
+// ---------------------------
+
+const FLOOR_Y = canvas.height - 40;
+
+let ball = {
+  x: canvas.width * 0.25,
+  y: FLOOR_Y - 30,
+  r: 22,
+  vx: 0,
+  vy: 0,
+  scored: false,
+};
+
+let hoop = {
+  x: canvas.width * 0.7,
+  y: 170,
+  w: 100,
+  h: 8,
+};
+
+let score = 0;
+
+// Timer and game state
+let timeLeft = 60; // seconds
+let gameState = 'menu'; // 'menu' | 'playing' | 'gameover'
+
+// Hand tracking state (normalized 0..1)
+let handX = 0.5;
+let handY = 0.5;
+let handVisible = false;
+
+// Hand movement in canvas coordinates
+let lastHandCanvasX = canvas.width / 2;
+let lastHandCanvasY = canvas.height / 2;
+let handSpeedX = 0;
+let handSpeedY = 0;
+
+// Pinch (thumb + index) state
+let isPinching = false;
+let wasPinching = false;
+
+// Throwing / physics
+let holdingBall = true;
+const GRAVITY = 0.8;
+const AIR_FRICTION = 0.99;
+
+// UI messages
+let message = '';
+let messageTimer = 0;
+
+// For frame timing
+let lastFrameTime = null;
+
+// ---------------------------
+// MediaPipe Hands setup
+// ---------------------------
+
+const hands = new Hands({
+  locateFile: (file) =>
+    `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`,
+});
+
+hands.setOptions({
+  maxNumHands: 1,
+  modelComplexity: 1,
+  minDetectionConfidence: 0.7,
+  minTrackingConfidence: 0.7,
+});
+
+hands.onResults((results) => {
+  handVisible = false;
+  wasPinching = isPinching;
+  isPinching = false;
+
+  if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+    const landmarks = results.multiHandLandmarks[0];
+    const wrist = landmarks[0];
+    const thumbTip = landmarks[4];
+    const indexTip = landmarks[8];
+
+    handX = wrist.x;
+    handY = wrist.y;
+    handVisible = true;
+
+    // Distance between thumb and index in normalized space
+    const dx = thumbTip.x - indexTip.x;
+    const dy = thumbTip.y - indexTip.y;
+    const pinchDist = Math.hypot(dx, dy);
+
+    // Threshold empirically chosen – small distance means pinch/close
+    if (pinchDist < 0.06) {
+      isPinching = true;
+    }
+  }
+});
+
+// ---------------------------
+// Camera
+// ---------------------------
+
+async function startCamera() {
+  const stream = await navigator.mediaDevices.getUserMedia({
+    video: { width: 640, height: 480 },
+    audio: false,
+  });
+
+  video.srcObject = stream;
+
+  const camera = new Camera(video, {
+    onFrame: async () => {
+      await hands.send({ image: video });
+    },
+    width: 640,
+    height: 480,
+  });
+
+  camera.start();
+}
+
+// ---------------------------
+// Helpers
+// ---------------------------
+
+function resetBall() {
+  ball.x = canvas.width * 0.25;
+  ball.y = FLOOR_Y - 30;
+  ball.vx = 0;
+  ball.vy = 0;
+  ball.scored = false;
+  holdingBall = true;
+}
+
+function startNewGame() {
+  score = 0;
+  timeLeft = 60;
+  gameState = 'playing';
+  message = '';
+  messageTimer = 0;
+  resetBall();
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.code === 'Space') {
+    if (gameState === 'menu' || gameState === 'gameover') {
+      startNewGame();
+    }
+  }
+});
+
+// ---------------------------
+// Game update
+// ---------------------------
+
+function update(dt) {
+  // Countdown timer
+  if (gameState === 'playing') {
+    timeLeft -= dt;
+    if (timeLeft <= 0) {
+      timeLeft = 0;
+      gameState = 'gameover';
+    }
+  }
+
+  // Fade out temporary messages
+  if (messageTimer > 0) {
+    messageTimer -= dt;
+    if (messageTimer <= 0) {
+      message = '';
+      messageTimer = 0;
+    }
+  }
+
+  // Convert hand position to canvas coordinates and estimate speed
+  if (handVisible) {
+    // Invert left/right: moving hand right moves ball left
+    const targetX = (1 - handX) * canvas.width;
+    const targetY = handY * canvas.height;
+
+    handSpeedX = targetX - lastHandCanvasX;
+    handSpeedY = targetY - lastHandCanvasY;
+
+    lastHandCanvasX = targetX;
+    lastHandCanvasY = targetY;
+  } else {
+    handSpeedX *= 0.9;
+    handSpeedY *= 0.9;
+  }
+
+  if (gameState !== 'playing') {
+    return;
+  }
+
+  // THROW PHYSICS
+  if (holdingBall) {
+    // Ball loosely follows the hand – smoother / slower left‑right
+    // Use the same inverted X mapping as above
+    const targetX = (1 - handX) * canvas.width;
+    const targetY = handY * canvas.height;
+
+    // Horizontal follows more slowly to feel heavier
+    ball.x += (targetX - ball.x) * 0.18;
+    // Vertical follows a bit faster so you can aim height
+    ball.y += (targetY - ball.y) * 0.35;
+
+    // Detect a "pinch to throw" gesture:
+    // - Fingers go from open to closed (pinch)
+    // - Hand moves upwards to give the ball an arc
+    const speed = Math.hypot(handSpeedX, handSpeedY);
+    const upward = handSpeedY < -2.5;
+    const pinchJustStarted = isPinching && !wasPinching;
+
+    if (pinchJustStarted && speed > 6 && upward) {
+      holdingBall = false;
+      // Stronger upward force for a high arc,
+      // but clamp left‑right speed to keep a nice curve
+      const maxSide = 18;
+      // Match the same inverted left‑right movement for the throw
+      const rawVx = handSpeedX * 0.9;
+      ball.vx = Math.max(-maxSide, Math.min(maxSide, rawVx));
+      ball.vy = handSpeedY * 1.4;
+    }
+  } else {
+    // Ball in flight under gravity
+    ball.vy += GRAVITY;
+    ball.x += ball.vx;
+    ball.y += ball.vy;
+
+    // Slightly stronger damping left‑right so the arc bends nicely
+    ball.vx *= AIR_FRICTION * 0.985;
+    ball.vy *= AIR_FRICTION;
+
+    // Simple rim scoring: ball passes downward through hoop line
+    if (
+      !ball.scored &&
+      ball.y - ball.r < hoop.y &&
+      ball.y + ball.r > hoop.y &&
+      ball.x > hoop.x &&
+      ball.x < hoop.x + hoop.w &&
+      ball.vy > 0
+    ) {
+      ball.scored = true;
+      score += 2;
+      message = 'Nice shot!';
+      messageTimer = 1.2;
+    }
+
+    // Floor / out of bounds
+    if (ball.y + ball.r > FLOOR_Y) {
+      ball.y = FLOOR_Y - ball.r;
+      ball.vy *= -0.4;
+      ball.vx *= 0.8;
+
+      // If ball is very slow, reset for next shot
+      if (Math.abs(ball.vy) < 1 && Math.abs(ball.vx) < 1) {
+        resetBall();
+      }
+    }
+
+    if (ball.x + ball.r < -50 || ball.x - ball.r > canvas.width + 50) {
+      resetBall();
+    }
+  }
+}
+
+// ---------------------------
+// Drawing
+// ---------------------------
+
+function drawCourtBackground() {
+  const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  gradient.addColorStop(0, '#111827'); // dark top
+  gradient.addColorStop(0.6, '#020617');
+  gradient.addColorStop(1, '#0b1120'); // very dark bottom
+
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Court floor
+  ctx.fillStyle = '#1e293b';
+  ctx.fillRect(0, FLOOR_Y, canvas.width, canvas.height - FLOOR_Y);
+
+  // Center line
+  ctx.strokeStyle = 'rgba(148, 163, 184, 0.5)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, FLOOR_Y);
+  ctx.lineTo(canvas.width, FLOOR_Y);
+  ctx.stroke();
+}
+
+function drawHoop() {
+  // Backboard
+  const backboardWidth = 140;
+  const backboardHeight = 80;
+  const backboardX = hoop.x + hoop.w / 2 - backboardWidth / 2;
+  const backboardY = hoop.y - backboardHeight / 2 - 20;
+
+  ctx.fillStyle = '#e5e7eb';
+  ctx.fillRect(backboardX, backboardY, backboardWidth, backboardHeight);
+
+  // Inner box
+  ctx.strokeStyle = '#f97316';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(
+    backboardX + 40,
+    backboardY + 25,
+    backboardWidth - 80,
+    backboardHeight - 50
+  );
+
+  // Rim
+  ctx.strokeStyle = '#f97316';
+  ctx.lineWidth = 6;
+  ctx.beginPath();
+  ctx.arc(hoop.x + hoop.w / 2, hoop.y, hoop.w / 2, 0, Math.PI, false);
+  ctx.stroke();
+
+  // Net (simple lines)
+  const netTopY = hoop.y + 4;
+  const netBottomY = hoop.y + 40;
+  ctx.strokeStyle = 'rgba(248, 250, 252, 0.8)';
+  ctx.lineWidth = 1.5;
+
+  for (let i = 0; i <= 6; i++) {
+    const t = i / 6;
+    const x = hoop.x + t * hoop.w;
+    const bottomX = hoop.x + hoop.w / 2 + (t - 0.5) * 20;
+    ctx.beginPath();
+    ctx.moveTo(x, netTopY);
+    ctx.lineTo(bottomX, netBottomY);
+    ctx.stroke();
+  }
+}
+
+function drawBall() {
+  // Shadow
+  const shadowScale = 1.2;
+  const shadowY = FLOOR_Y + 4;
+  const heightFactor = Math.max(
+    0,
+    Math.min(1, (FLOOR_Y - ball.y) / (FLOOR_Y - 80))
+  );
+  const shadowRadius = ball.r * shadowScale * (1 - 0.5 * heightFactor);
+
+  ctx.beginPath();
+  ctx.ellipse(
+    ball.x,
+    shadowY,
+    shadowRadius,
+    shadowRadius * 0.4,
+    0,
+    0,
+    Math.PI * 2
+  );
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.7)';
+  ctx.fill();
+
+  // Ball
+  const gradient = ctx.createRadialGradient(
+    ball.x - ball.r * 0.4,
+    ball.y - ball.r * 0.4,
+    ball.r * 0.3,
+    ball.x,
+    ball.y,
+    ball.r
+  );
+  gradient.addColorStop(0, '#fed7aa');
+  gradient.addColorStop(0.4, '#fdba74');
+  gradient.addColorStop(1, '#f97316');
+
+  ctx.beginPath();
+  ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+  ctx.fillStyle = gradient;
+  ctx.fill();
+
+  ctx.strokeStyle = '#111827';
+  ctx.lineWidth = 3;
+
+  // Vertical lines
+  ctx.beginPath();
+  ctx.arc(ball.x, ball.y, ball.r * 0.9, -Math.PI / 2.5, Math.PI / 2.5);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(ball.x, ball.y, ball.r * 0.9, (Math.PI / 2) * 0.8, (Math.PI / 2) * 3.2);
+  ctx.stroke();
+
+  // Horizontal lines
+  ctx.beginPath();
+  ctx.arc(ball.x, ball.y, ball.r * 0.9, 0, Math.PI);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(ball.x, ball.y, ball.r * 0.9, Math.PI, Math.PI * 2);
+  ctx.stroke();
+}
+
+function drawHUD() {
+  ctx.fillStyle = '#e5e7eb';
+  ctx.font = '24px system-ui';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText(`Score: ${score}`, 24, 20);
+
+  // Timer
+  ctx.textAlign = 'right';
+  const seconds = Math.ceil(timeLeft);
+  ctx.fillText(`Time: ${seconds}s`, canvas.width - 24, 20);
+
+  // Info text
+  if (gameState === 'playing') {
+    ctx.textAlign = 'center';
+    ctx.font = '16px system-ui';
+    ctx.fillStyle = '#9ca3af';
+    ctx.fillText(
+      'Move your hand to control the ball. Flick your hand upwards to shoot!',
+      canvas.width / 2,
+      canvas.height - 70
+    );
+  }
+
+  // Temporary message (e.g. "Nice shot!")
+  if (message) {
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = '32px system-ui';
+    ctx.fillStyle = '#facc15';
+    ctx.fillText(message, canvas.width / 2, 90);
+  }
+}
+
+function drawOverlays() {
+  if (gameState === 'menu') {
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.7)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    ctx.fillStyle = '#e5e7eb';
+    ctx.font = '40px system-ui';
+    ctx.fillText('Camera Basketball', canvas.width / 2, canvas.height / 2 - 60);
+
+    ctx.font = '22px system-ui';
+    ctx.fillStyle = '#9ca3af';
+    ctx.fillText(
+      'Allow camera access, then move your hand in front of the camera.',
+      canvas.width / 2,
+      canvas.height / 2
+    );
+    ctx.fillText(
+      'Press SPACE to start. Flick your hand upwards to shoot.',
+      canvas.width / 2,
+      canvas.height / 2 + 40
+    );
+  } else if (gameState === 'gameover') {
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.75)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    ctx.fillStyle = '#e5e7eb';
+    ctx.font = '38px system-ui';
+    ctx.fillText('Time Up!', canvas.width / 2, canvas.height / 2 - 40);
+
+    ctx.font = '28px system-ui';
+    ctx.fillText(`Final Score: ${score}`, canvas.width / 2, canvas.height / 2 + 5);
+
+    ctx.font = '20px system-ui';
+    ctx.fillStyle = '#9ca3af';
+    ctx.fillText(
+      'Press SPACE to play again',
+      canvas.width / 2,
+      canvas.height / 2 + 50
+    );
+  }
+}
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  drawCourtBackground();
+  drawHoop();
+  drawBall();
+  drawHUD();
+  drawOverlays();
+}
+
+// ---------------------------
+// Main loop
+// ---------------------------
+
+function loop(timestamp) {
+  if (!lastFrameTime) {
+    lastFrameTime = timestamp;
+  }
+
+  const dt = (timestamp - lastFrameTime) / 1000;
+  lastFrameTime = timestamp;
+
+  update(dt);
+  draw();
+
+  requestAnimationFrame(loop);
+}
+
+startCamera().catch(console.error);
+requestAnimationFrame(loop);
