@@ -10,17 +10,22 @@
   <video id="webcam" autoplay playsinline style="display:none;"></video>
 
   <div class="app">
-    <header class="topbar">
-      <div class="brand">Camera Basketball</div>
-      <div class="topbar-actions">
-        <button id="btnHome" class="btn btn-ghost" type="button">Home</button>
-        <button id="btnAbout" class="btn btn-ghost" type="button">About</button>
-      </div>
-    </header>
-
     <main class="main">
-      <!-- Main Menu page -->
-      <section id="screenMenu" class="screen screen-active" aria-label="Main menu">
+      <!-- Home screen (shown first) -->
+      <section id="screenHome" class="screen screen-active" aria-label="Home">
+        <!-- background image from workspace -->
+        <div class="home-container">
+          <img src="Home_Screen_andButtons.png" alt="Home" class="home-image" />
+          <div class="home-buttons">
+            <button id="btnHomeStart" class="btn btn-primary" type="button">Start</button>
+            <button id="btnBallColor" class="btn btn-primary" type="button">Balls</button>
+            <button id="btnHomeAbout" class="btn btn-ghost" type="button">About</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Main Menu page (level selection) -->
+      <section id="screenMenu" class="screen" aria-label="Main menu">
         <h1 class="title">Camera Basketball</h1>
         <p class="subtitle">Use your hand + pinch to shoot. Allow camera access when prompted.</p>
 
@@ -34,6 +39,7 @@
           <div class="hint">Tip: Move your hand to aim. Pinch thumb+index while moving up to shoot.</div>
         </div>
       </section>
+
 
       <!-- About page -->
       <section id="screenAbout" class="screen" aria-label="About">
@@ -63,6 +69,22 @@
         </div>
       </section>
     </main>
+  </div>
+
+  <!-- color picker overlay (hidden initially) -->
+  <div id="colorChooser" class="overlay hidden" aria-hidden="true">
+    <div class="chooser-panel">
+      <h2>Select ball color</h2>
+      <div class="color-grid">
+        <button data-color="#f97316" class="color-swatch" style="background:#f97316"></button>
+        <button data-color="#ef4444" class="color-swatch" style="background:#ef4444"></button>
+        <button data-color="#3b82f6" class="color-swatch" style="background:#3b82f6"></button>
+        <button data-color="#10b981" class="color-swatch" style="background:#10b981"></button>
+        <button data-color="#8b5cf6" class="color-swatch" style="background:#8b5cf6"></button>
+        <button data-color="#fbbf24" class="color-swatch" style="background:#fbbf24"></button>
+      </div>
+      <button id="btnCloseChooser" class="btn btn-ghost" type="button">Close</button>
+    </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
