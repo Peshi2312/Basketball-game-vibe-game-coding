@@ -13,13 +13,15 @@
     <main class="main">
       <!-- Home screen (shown first) -->
       <section id="screenHome" class="screen screen-active" aria-label="Home">
-        <!-- background image from workspace -->
         <div class="home-container">
-          <img src="Home_Screen_andButtons.png" alt="Home" class="home-image" />
+          <!-- Use the provided background + logo image -->
+          <img src="Home_Screen_andButtons.png" alt="AI Hoops home" class="home-image" />
+          <!-- Invisible HTML buttons aligned on top of the image artwork -->
           <div class="home-buttons">
-            <button id="btnHomeStart" class="btn btn-primary" type="button">Start</button>
-            <button id="btnBallColor" class="btn btn-primary" type="button">Balls</button>
-            <button id="btnHomeAbout" class="btn btn-ghost" type="button">About</button>
+            <button id="btnHomeStart" class="btn" type="button">PLAY</button>
+            <button id="btnBallColor" class="btn" type="button">BALLS</button>
+            <button id="btnHomeHowToPlay" class="btn" type="button">HOW TO PLAY</button>
+            <button id="btnHomeAbout" class="btn" type="button">ABOUT US</button>
           </div>
         </div>
       </section>
@@ -27,7 +29,7 @@
       <!-- Main Menu page (level selection) -->
       <section id="screenMenu" class="screen" aria-label="Main menu">
         <h1 class="title">Camera Basketball</h1>
-        <p class="subtitle">Use your hand + pinch to shoot. Allow camera access when prompted.</p>
+        <p class="subtitle">Raise your hand to start the shot meter, then pinch to release. Time it right to score.</p>
 
         <div class="panel">
           <div class="panel-title">Choose a level</div>
@@ -36,10 +38,39 @@
             <button id="btnLevelHard" class="btn btn-primary" type="button">Hard (moving rim)</button>
             <button id="btnLevelInsane" class="btn btn-primary" type="button">Insane (fast rim)</button>
           </div>
-          <div class="hint">Tip: Move your hand to aim. Pinch thumb+index while moving up to shoot.</div>
+          <div class="hint">Tip: Keep your hand steady to aim. Pinch at the green window for a swish.</div>
         </div>
       </section>
 
+      <!-- Ball color selection screen -->
+      <section id="screenBalls" class="screen" aria-label="Ball colors">
+        <div class="balls-container">
+          <header class="balls-header">
+            <button id="btnBallsBack" class="btn btn-ghost balls-back" type="button">&larr;</button>
+            <h1 class="balls-title">CHOOSE YOUR BALL</h1>
+          </header>
+          <div class="balls-grid">
+            <button id="btnBallOrange" class="ball-card ball-card-orange" type="button">
+              <span class="ball-label">ORANGE</span>
+            </button>
+            <button id="btnBallBlue" class="ball-card ball-card-blue" type="button">
+              <span class="ball-label">BLUE</span>
+            </button>
+            <button id="btnBallGreen" class="ball-card ball-card-green" type="button">
+              <span class="ball-label">GREEN</span>
+            </button>
+            <button id="btnBallRed" class="ball-card ball-card-red" type="button">
+              <span class="ball-label">RED</span>
+            </button>
+            <button id="btnBallYellow" class="ball-card ball-card-yellow" type="button">
+              <span class="ball-label">YELLOW</span>
+            </button>
+            <button id="btnBallPurple" class="ball-card ball-card-purple" type="button">
+              <span class="ball-label">PURPLE</span>
+            </button>
+          </div>
+        </div>
+      </section>
 
       <!-- About page -->
       <section id="screenAbout" class="screen" aria-label="About">
@@ -58,6 +89,20 @@
         </div>
       </section>
 
+      <!-- How to play page -->
+      <section id="screenHowToPlay" class="screen" aria-label="How to play">
+        <h2 class="title-sm">How to play</h2>
+        <div class="panel">
+          <ul class="list">
+            <li><b>Aim</b>: move your hand left/right to move the ball.</li>
+            <li><b>Start shot</b>: raise your hand up to start the timing meter.</li>
+            <li><b>Release</b>: pinch thumb + index to shoot.</li>
+            <li><b>Score</b>: pinch during the green timing window to make it.</li>
+          </ul>
+          <button id="btnBackFromHowToPlay" class="btn btn-primary" type="button">Back</button>
+        </div>
+      </section>
+
       <!-- Game page -->
       <section id="screenGame" class="screen" aria-label="Game">
         <div class="game-wrap">
@@ -71,24 +116,104 @@
     </main>
   </div>
 
-  <!-- color picker overlay (hidden initially) -->
-  <div id="colorChooser" class="overlay hidden" aria-hidden="true">
-    <div class="chooser-panel">
-      <h2>Select ball color</h2>
-      <div class="color-grid">
-        <button data-color="#f97316" class="color-swatch" style="background:#f97316"></button>
-        <button data-color="#ef4444" class="color-swatch" style="background:#ef4444"></button>
-        <button data-color="#3b82f6" class="color-swatch" style="background:#3b82f6"></button>
-        <button data-color="#10b981" class="color-swatch" style="background:#10b981"></button>
-        <button data-color="#8b5cf6" class="color-swatch" style="background:#8b5cf6"></button>
-        <button data-color="#fbbf24" class="color-swatch" style="background:#fbbf24"></button>
-      </div>
-      <button id="btnCloseChooser" class="btn btn-ghost" type="button">Close</button>
-    </div>
-  </div>
-
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
   <script src="JavaScript.js"></script>
+  <!-- Fallback navigation so buttons always work, even if other JS fails -->
+  <script>
+    (function () {
+      function safeShow(screenId) {
+        var screens = document.querySelectorAll('.screen');
+        for (var i = 0; i < screens.length; i++) {
+          screens[i].classList.remove('screen-active');
+        }
+        var target = document.getElementById(screenId);
+        if (target) {
+          target.classList.add('screen-active');
+        }
+      }
+
+      function on(id, handler) {
+        var el = document.getElementById(id);
+        if (el) el.addEventListener('click', handler);
+      }
+
+      // Home buttons
+      on('btnHomeStart', function () {
+        safeShow('screenMenu');
+      });
+      on('btnBallColor', function () {
+        safeShow('screenBalls');
+      });
+      on('btnHomeHowToPlay', function () {
+        safeShow('screenHowToPlay');
+      });
+      on('btnHomeAbout', function () {
+        safeShow('screenAbout');
+      });
+
+      // About / How to play back
+      on('btnBackFromAbout', function () {
+        safeShow('screenHome');
+      });
+      on('btnBackFromHowToPlay', function () {
+        safeShow('screenHome');
+      });
+
+      // Balls back arrow
+      on('btnBallsBack', function () {
+        safeShow('screenHome');
+      });
+
+      // Level buttons -> try to start game if available, otherwise just show game screen
+      function startLevel(levelKey) {
+        safeShow('screenGame');
+        if (window.setLevel && window.startGame && window.Levels) {
+          try {
+            window.setLevel(window.Levels[levelKey] || window.Levels.easy);
+            window.startGame();
+          } catch (e) {
+            console && console.warn && console.warn('startLevel fallback error', e);
+          }
+        }
+      }
+
+      on('btnLevelEasy', function () {
+        startLevel('easy');
+      });
+      on('btnLevelHard', function () {
+        startLevel('hard');
+      });
+      on('btnLevelInsane', function () {
+        startLevel('insane');
+      });
+
+      // Ball choices -> set color then show game if game functions are available
+      function pickBall(colorKey) {
+        if (window.BallColors && window.setBallColor) {
+          try {
+            window.setBallColor(window.BallColors[colorKey]);
+          } catch (e) {
+            console && console.warn && console.warn('pickBall color error', e);
+          }
+        }
+        safeShow('screenGame');
+        if (window.startGame) {
+          try {
+            window.startGame();
+          } catch (e) {
+            console && console.warn && console.warn('pickBall start error', e);
+          }
+        }
+      }
+
+      on('btnBallOrange', function () { pickBall('orange'); });
+      on('btnBallBlue', function () { pickBall('blue'); });
+      on('btnBallGreen', function () { pickBall('green'); });
+      on('btnBallRed', function () { pickBall('red'); });
+      on('btnBallYellow', function () { pickBall('yellow'); });
+      on('btnBallPurple', function () { pickBall('purple'); });
+    })();
+  </script>
 </body>
 </html>
