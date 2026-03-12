@@ -228,6 +228,9 @@ function setLevel(level) {
   hoop.x = hoopBase.x;
   hoop.y = hoopBase.y;
 }
+// make available for inline fallback
+window.setLevel = setLevel;
+window.startGame = () => { goGame(); startNewGame(); };
 
 btnHomeStart?.addEventListener('click', () => showScreen(screenMenu));
 btnBallColor?.addEventListener('click', () => showScreen(screenBalls));
@@ -254,7 +257,9 @@ btnExit?.addEventListener('click', () => goMenu());
 ].forEach(({btn,color})=>{
   btn?.addEventListener('click', () => {
     setBallColor(color);
-    showScreen(screenMenu);
+    // immediately start using current level (defaults to easy)
+    goGame();
+    startNewGame();
   });
 });
 
