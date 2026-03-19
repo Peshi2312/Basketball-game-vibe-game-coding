@@ -17,6 +17,7 @@ const btnHomeAbout = document.getElementById('btnHomeAbout');
 const btnBackFromHowToPlay = document.getElementById('btnBackFromHowToPlay');
 const btnBackFromAbout = document.getElementById('btnBackFromAbout');
 const btnBallsBack = document.getElementById('btnBallsBack');
+const btnMenuBack = document.getElementById('btnMenuBack');
 
 const btnLevelEasy = document.getElementById('btnLevelEasy');
 const btnLevelHard = document.getElementById('btnLevelHard');
@@ -24,6 +25,7 @@ const btnLevelInsane = document.getElementById('btnLevelInsane');
 
 const btnRestart = document.getElementById('btnRestart');
 const btnExit = document.getElementById('btnExit');
+const btnHomeInGame = document.getElementById('btnHomeInGame');
 
 // ball color buttons
 const btnBallOrange = document.getElementById('btnBallOrange');
@@ -67,8 +69,8 @@ let ball = {
 
 let hoop = {
   x: canvas.width * 0.7,
-  y: 170,
-  w: 100,
+  y: 200,
+  w: 120,
   h: 8,
 };
 
@@ -226,11 +228,17 @@ function goGame() { showScreen(screenGame); }
 function setLevel(level) {
   currentLevel = level;
   levelTime = 60;
-  hoopBase = { x: canvas.width * 0.7, y: 170 };
-  hoop.w = 100;
+  hoopBase = { x: canvas.width * 0.7, y: 200 };
   hoop.h = 8;
   hoop.x = hoopBase.x;
   hoop.y = hoopBase.y;
+  if (level.id === 'easy') {
+    hoop.w = RIM_WIDTH_EASY;
+  } else if (level.id === 'hard') {
+    hoop.w = RIM_WIDTH_HARD;
+  } else {
+    hoop.w = RIM_WIDTH_INSANE;
+  }
 }
 // make available for inline fallback
 window.setLevel = setLevel;
@@ -243,6 +251,7 @@ btnHomeAbout?.addEventListener('click', () => showScreen(screenAbout));
 btnBackFromHowToPlay?.addEventListener('click', () => showScreen(screenHome));
 btnBackFromAbout?.addEventListener('click', () => showScreen(screenHome));
 btnBallsBack?.addEventListener('click', () => showScreen(screenHome));
+btnMenuBack?.addEventListener('click', () => showScreen(screenHome));
 
 btnLevelEasy?.addEventListener('click', () => { setLevel(LEVELS.easy); goGame(); startNewGame(); });
 btnLevelHard?.addEventListener('click', () => { setLevel(LEVELS.hard); goGame(); startNewGame(); });
@@ -250,6 +259,7 @@ btnLevelInsane?.addEventListener('click', () => { setLevel(LEVELS.insane); goGam
 
 btnRestart?.addEventListener('click', () => startNewGame());
 btnExit?.addEventListener('click', () => goMenu());
+btnHomeInGame?.addEventListener('click', () => showScreen(screenHome));
 
 // color swatches
 [  {btn: btnBallOrange, color:'#f97316'},
@@ -326,16 +336,38 @@ function update(dt) {
     ball.vx *= AIR_FRICTION * 0.985;
     ball.vy *= AIR_FRICTION;
 
-    if (!ball.scored &&
-        ball.y - ball.r < hoop.y &&
-        ball.y + ball.r > hoop.y &&
-        ball.x > hoop.x &&
-        ball.x < hoop.x + hoop.w &&
-        ball.vy > 0) {
-      ball.scored = true;
-      score += 2;
-      message = 'Nice shot!';
-      messageTimer = 1.2;
+    if (!ball.scored) {
+      // Check if ball goes in or hits rim
+      const rimY = hoop.y;
+      const rimX = hoop.x;
+      const rimW = hoop.w;
+      const rimH = RIM_HEIGHT;
+      // Ball center
+      const bx = ball.x;
+      const by = ball.y;
+      // Ball goes in (center inside rim area, moving downward)
+      const inRim = (by - ball.r < rimY && by + ball.r > rimY && bx > rimX && bx < rimX + rimW && ball.vy > 0);
+      // Ball hits rim (edge overlaps rim area)
+      const hitsRim = (
+        by + ball.r > rimY - rimH/2 && by - ball.r < rimY + rimH/2 &&
+        bx + ball.r > rimX && bx - ball.r < rimX + rimW && ball.vy > 0
+      );
+      // Ball hits backboard outside rim
+      const backboardX = rimX + rimW/2 - 70;
+      const backboardY = rimY - 60;
+      const backboardW = 140;
+      const backboardH = 80;
+      const hitsBackboard = (
+        bx > backboardX && bx < backboardX + backboardW &&
+        by > backboardY && by < backboardY + backboardH &&
+        !(bx > rimX && bx < rimX + rimW && by > rimY - rimH/2 && by < rimY + rimH/2)
+      );
+      if ((inRim || hitsRim) && !hitsBackboard) {
+        ball.scored = true;
+        score += 2;
+        message = 'Nice shot!';
+        messageTimer = 1.2;
+      }
     }
 
     if (ball.y + ball.r > FLOOR_Y) {
@@ -380,7 +412,7 @@ function drawHoop() {
   // Use Asset 2.png as the rim
   if (asset2Img.complete && asset2Img.naturalWidth > 0) {
     const rimWidth = hoop.w;
-    const rimHeight = 50; // Adjust height as needed
+    const rimHeight = 100; // Adjust height as needed
     const rimX = hoop.x;
     const rimY = hoop.y - rimHeight / 2;
     ctx.drawImage(asset2Img, rimX, rimY, rimWidth, rimHeight);
@@ -462,16 +494,6 @@ function drawHUD() {
   ctx.fillStyle = '#cbd5e1';
   ctx.font = '18px system-ui';
   ctx.fillText(currentLevel.name, canvas.width / 2, 22);
-  if (gameState === 'playing') {
-    ctx.textAlign = 'center';
-    ctx.font = '16px system-ui';
-    ctx.fillStyle = '#9ca3af';
-    ctx.fillText(
-      'Move your hand to control the ball. Flick your hand upwards to shoot!',
-      canvas.width / 2,
-      canvas.height - 70
-    );
-  }
   if (message) {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
