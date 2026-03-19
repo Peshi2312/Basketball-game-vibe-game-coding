@@ -54,8 +54,12 @@ function adjustColor(col, amt) {
 }
 
 // ---------------------------
-// Game state
+// Constants
 // ---------------------------
+const RIM_WIDTH_EASY = 120;
+const RIM_WIDTH_HARD = 100;
+const RIM_WIDTH_INSANE = 80;
+const RIM_HEIGHT = 8;
 const FLOOR_Y = canvas.height - 40;
 
 let ball = {
@@ -110,6 +114,14 @@ let wasPinching = false;
 let holdingBall = true;
 const GRAVITY = 0.8;
 const AIR_FRICTION = 0.99;
+
+// Shot meter
+let shotMeter = 0; // 0 to 1
+let shotMeterActive = false;
+let shotMeterStartTime = 0;
+const SHOT_METER_DURATION = 1.0; // seconds
+const SHOT_GREEN_START = 0.4;
+const SHOT_GREEN_END = 0.6;
 
 // UI messages
 let message = '';
@@ -189,6 +201,8 @@ function resetBall() {
   ball.vy = 0;
   ball.scored = false;
   holdingBall = true;
+  shotMeter = 0;
+  shotMeterActive = false;
 }
 
 function startNewGame() {
@@ -198,6 +212,8 @@ function startNewGame() {
   message = '';
   messageTimer = 0;
   hoopPhase = 0;
+  shotMeter = 0;
+  shotMeterActive = false;
   resetBall();
 }
 
@@ -320,14 +336,43 @@ function update(dt) {
 
     const speed = Math.hypot(handSpeedX, handSpeedY);
     const upward = handSpeedY < -2.5;
-    const pinchJustStarted = isPinching && !wasPinching;
 
-    if (pinchJustStarted && speed > 6 && upward) {
-      holdingBall = false;
-      const maxSide = 18;
-      const rawVx = handSpeedX * 0.9;
-      ball.vx = Math.max(-maxSide, Math.min(maxSide, rawVx));
-      ball.vy = handSpeedY * 1.4;
+    if (!shotMeterActive && upward && speed > 4) {
+      // Start shot meter
+      shotMeterActive = true;
+      shotMeterStartTime = lastFrameTime / 1000;
+      shotMeter = 0;
+    }
+
+    if (shotMeterActive) {
+      const elapsed = (lastFrameTime / 1000) - shotMeterStartTime;
+      shotMeter = Math.min(1, elapsed / SHOT_METER_DURATION);
+
+      if (pinchJustStarted) {
+        // Shoot!
+        holdingBall = false;
+        shotMeterActive = false;
+        const inGreen = shotMeter >= SHOT_GREEN_START && shotMeter <= SHOT_GREEN_END;
+        const basePower = 12;
+        const power = inGreen ? basePower * 1.5 : basePower;
+        const maxSide = 18;
+        const rawVx = handSpeedX * 0.9;
+        ball.vx = Math.max(-maxSide, Math.min(maxSide, rawVx));
+        ball.vy = -power; // Always upward for shot
+        message = inGreen ? 'Perfect timing!' : 'Good shot!';
+        messageTimer = 1.2;
+      }
+
+      if (shotMeter >= 1) {
+        // Meter full, auto shoot
+        holdingBall = false;
+        shotMeterActive = false;
+        const basePower = 8;
+        ball.vx = 0;
+        ball.vy = -basePower;
+        message = 'Too late!';
+        messageTimer = 1.2;
+      }
     }
   } else {
     ball.vy += GRAVITY;
@@ -494,6 +539,29 @@ function drawHUD() {
   ctx.fillStyle = '#cbd5e1';
   ctx.font = '18px system-ui';
   ctx.fillText(currentLevel.name, canvas.width / 2, 22);
+
+  // Draw shot meter
+  if (shotMeterActive) {
+    const meterWidth = 200;
+    const meterHeight = 20;
+    const meterX = canvas.width / 2 - meterWidth / 2;
+    const meterY = canvas.height - 60;
+    ctx.fillStyle = '#374151';
+    ctx.fillRect(meterX, meterY, meterWidth, meterHeight);
+    ctx.fillStyle = '#ef4444';
+    ctx.fillRect(meterX, meterY, meterWidth * shotMeter, meterHeight);
+    ctx.fillStyle = '#10b981';
+    const greenStart = meterX + meterWidth * SHOT_GREEN_START;
+    const greenWidth = meterWidth * (SHOT_GREEN_END - SHOT_GREEN_START);
+    ctx.fillRect(greenStart, meterY, greenWidth, meterHeight);
+    ctx.strokeStyle = '#e5e7eb';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(meterX, meterY, meterWidth, meterHeight);
+    ctx.fillStyle = '#e5e7eb';
+    ctx.font = '16px system-ui';
+    ctx.fillText('TIMING', canvas.width / 2, meterY - 25);
+  }
+
   if (message) {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -561,5 +629,16 @@ startCamera().catch(console.error);
 // Load background images
 gameBackgroundImg.src = './Game_Background.png';
 asset2Img.src = './Asset 2.png';
+
+// Expose for fallback script
+window.Levels = LEVELS;
+window.BallColors = {
+  orange: '#f97316',
+  blue: '#3b82f6',
+  green: '#10b981',
+  red: '#ef4444',
+  yellow: '#fbbf24',
+  purple: '#8b5cf6'
+};
 
 requestAnimationFrame(loop);
