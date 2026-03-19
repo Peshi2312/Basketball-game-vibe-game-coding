@@ -153,16 +153,23 @@ body {
 }
 
 .game-wrap {
-  display: grid;
-  justify-items: center;
-  gap: 14px;
+  position: relative;
+}
+
+.game-controls {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  display: flex;
+  gap: 10px;
+  z-index: 10;
 }
 
 #gameCanvas {
-  width: min(980px, 100%);
-  height: auto;
-  border: 2px solid rgba(226, 232, 240, 0.35);
-  border-radius: 18px;
+  width: 100vw;
+  height: 100vh;
+  border: none;
+  border-radius: 0;
   background: linear-gradient(#1b2838, #0b0c10);
 }
 

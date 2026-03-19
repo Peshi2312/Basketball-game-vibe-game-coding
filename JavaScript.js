@@ -2,6 +2,19 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
+// Make canvas full screen
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  FLOOR_Y = canvas.height - 40;
+  // Adjust hoop position proportionally
+  hoop.x = canvas.width * 0.7;
+  hoopBase.x = hoop.x;
+}
+
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
 // Screens / navigation
 const screenHome = document.getElementById('screenHome');
 const screenMenu = document.getElementById('screenMenu');
@@ -54,7 +67,7 @@ function adjustColor(col, amt) {
 // ---------------------------
 // Game state
 // ---------------------------
-const FLOOR_Y = canvas.height - 40;
+let FLOOR_Y = canvas.height - 40;
 
 let ball = {
   x: canvas.width * 0.25,
@@ -86,6 +99,10 @@ let currentLevel = LEVELS.easy;
 let levelTime = 60;
 let hoopBase = { x: hoop.x, y: hoop.y };
 let hoopPhase = 0;
+
+// Background images
+let gameBackgroundImg = new Image();
+let asset2Img = new Image();
 
 // Hand tracking state (normalized 0..1)
 let handX = 0.5;
@@ -349,50 +366,76 @@ function update(dt) {
 // Drawing
 // ---------------------------
 function drawCourtBackground() {
-  const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-  gradient.addColorStop(0, '#111827');
-  gradient.addColorStop(0.6, '#020617');
-  gradient.addColorStop(1, '#0b1120');
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = '#1e293b';
-  ctx.fillRect(0, FLOOR_Y, canvas.width, canvas.height - FLOOR_Y);
+  // Choose background image based on level
+  let bgImg;
+  if (currentLevel.id === 'easy') {
+    bgImg = gameBackgroundImg;
+  } else {
+    bgImg = asset2Img;
+  }
 
-  ctx.strokeStyle = 'rgba(148, 163, 184, 0.5)';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(0, FLOOR_Y);
-  ctx.lineTo(canvas.width, FLOOR_Y);
-  ctx.stroke();
+  // Draw background image
+  if (bgImg.complete && bgImg.naturalWidth > 0) {
+    ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
+  } else {
+    // Fallback to gradient if image not loaded
+    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    gradient.addColorStop(0, '#111827');
+    gradient.addColorStop(0.6, '#020617');
+    gradient.addColorStop(1, '#0b1120');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Draw floor for gradient background
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(0, FLOOR_Y, canvas.width, canvas.height - FLOOR_Y);
+
+    ctx.strokeStyle = 'rgba(148, 163, 184, 0.5)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, FLOOR_Y);
+    ctx.lineTo(canvas.width, FLOOR_Y);
+    ctx.stroke();
+  }
 }
 
 function drawHoop() {
-  const backboardWidth = 140;
-  const backboardHeight = 80;
-  const backboardX = hoop.x + hoop.w / 2 - backboardWidth / 2;
-  const backboardY = hoop.y - backboardHeight / 2 - 20;
-  ctx.fillStyle = '#e5e7eb';
-  ctx.fillRect(backboardX, backboardY, backboardWidth, backboardHeight);
-  ctx.strokeStyle = '#f97316';
-  ctx.lineWidth = 3;
-  ctx.strokeRect(backboardX + 40, backboardY + 25, backboardWidth - 80, backboardHeight - 50);
-  ctx.strokeStyle = '#f97316';
-  ctx.lineWidth = 6;
-  ctx.beginPath();
-  ctx.arc(hoop.x + hoop.w / 2, hoop.y, hoop.w / 2, 0, Math.PI, false);
-  ctx.stroke();
-  const netTopY = hoop.y + 4;
-  const netBottomY = hoop.y + 40;
-  ctx.strokeStyle = 'rgba(248, 250, 252, 0.8)';
-  ctx.lineWidth = 1.5;
-  for (let i = 0; i <= 6; i++) {
-    const t = i / 6;
-    const x = hoop.x + t * hoop.w;
-    const bottomX = hoop.x + hoop.w / 2 + (t - 0.5) * 20;
+  // Draw rim using Asset 2.png
+  if (asset2Img.complete && asset2Img.naturalWidth > 0) {
+    const rimWidth = hoop.w;
+    const rimHeight = 50; // Adjust as needed
+    const rimX = hoop.x;
+    const rimY = hoop.y - rimHeight / 2;
+    ctx.drawImage(asset2Img, rimX, rimY, rimWidth, rimHeight);
+  } else {
+    // Fallback to original drawing
+    const backboardWidth = 140;
+    const backboardHeight = 80;
+    const backboardX = hoop.x + hoop.w / 2 - backboardWidth / 2;
+    const backboardY = hoop.y - backboardHeight / 2 - 20;
+    ctx.fillStyle = '#e5e7eb';
+    ctx.fillRect(backboardX, backboardY, backboardWidth, backboardHeight);
+    ctx.strokeStyle = '#f97316';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(backboardX + 40, backboardY + 25, backboardWidth - 80, backboardHeight - 50);
+    ctx.strokeStyle = '#f97316';
+    ctx.lineWidth = 6;
     ctx.beginPath();
-    ctx.moveTo(x, netTopY);
-    ctx.lineTo(bottomX, netBottomY);
+    ctx.arc(hoop.x + hoop.w / 2, hoop.y, hoop.w / 2, 0, Math.PI, false);
     ctx.stroke();
+    const netTopY = hoop.y + 4;
+    const netBottomY = hoop.y + 40;
+    ctx.strokeStyle = 'rgba(248, 250, 252, 0.8)';
+    ctx.lineWidth = 1.5;
+    for (let i = 0; i <= 6; i++) {
+      const t = i / 6;
+      const x = hoop.x + t * hoop.w;
+      const bottomX = hoop.x + hoop.w / 2 + (t - 0.5) * 20;
+      ctx.beginPath();
+      ctx.moveTo(x, netTopY);
+      ctx.lineTo(bottomX, netBottomY);
+      ctx.stroke();
+    }
   }
 }
 
@@ -515,4 +558,9 @@ function loop(timestamp) {
 // make sure first screen matches markup
 showScreen(screenHome);
 startCamera().catch(console.error);
+
+// Load background images
+gameBackgroundImg.src = './Game_Background.png';
+asset2Img.src = './Asset 2.png';
+
 requestAnimationFrame(loop);
