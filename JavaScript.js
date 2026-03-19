@@ -1,4 +1,4 @@
-const video = document.getElementById('webcam');
+﻿const video = document.getElementById('webcam');
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
@@ -17,7 +17,6 @@ const btnHomeAbout = document.getElementById('btnHomeAbout');
 const btnBackFromHowToPlay = document.getElementById('btnBackFromHowToPlay');
 const btnBackFromAbout = document.getElementById('btnBackFromAbout');
 const btnBallsBack = document.getElementById('btnBallsBack');
-const btnMenuBack = document.getElementById('btnMenuBack');
 
 const btnLevelEasy = document.getElementById('btnLevelEasy');
 const btnLevelHard = document.getElementById('btnLevelHard');
@@ -25,7 +24,6 @@ const btnLevelInsane = document.getElementById('btnLevelInsane');
 
 const btnRestart = document.getElementById('btnRestart');
 const btnExit = document.getElementById('btnExit');
-const btnHomeInGame = document.getElementById('btnHomeInGame');
 
 // ball color buttons
 const btnBallOrange = document.getElementById('btnBallOrange');
@@ -73,8 +71,8 @@ let ball = {
 
 let hoop = {
   x: canvas.width * 0.7,
-  y: 200,
-  w: 120,
+  y: 170,
+  w: 100,
   h: 8,
 };
 
@@ -92,10 +90,6 @@ let currentLevel = LEVELS.easy;
 let levelTime = 60;
 let hoopBase = { x: hoop.x, y: hoop.y };
 let hoopPhase = 0;
-
-// Background images
-let gameBackgroundImg = new Image();
-let asset2Img = new Image();
 
 // Hand tracking state (normalized 0..1)
 let handX = 0.5;
@@ -244,17 +238,11 @@ function goGame() { showScreen(screenGame); }
 function setLevel(level) {
   currentLevel = level;
   levelTime = 60;
-  hoopBase = { x: canvas.width * 0.7, y: 200 };
+  hoopBase = { x: canvas.width * 0.7, y: 170 };
+  hoop.w = 100;
   hoop.h = 8;
   hoop.x = hoopBase.x;
   hoop.y = hoopBase.y;
-  if (level.id === 'easy') {
-    hoop.w = RIM_WIDTH_EASY;
-  } else if (level.id === 'hard') {
-    hoop.w = RIM_WIDTH_HARD;
-  } else {
-    hoop.w = RIM_WIDTH_INSANE;
-  }
 }
 // make available for inline fallback
 window.setLevel = setLevel;
@@ -267,7 +255,6 @@ btnHomeAbout?.addEventListener('click', () => showScreen(screenAbout));
 btnBackFromHowToPlay?.addEventListener('click', () => showScreen(screenHome));
 btnBackFromAbout?.addEventListener('click', () => showScreen(screenHome));
 btnBallsBack?.addEventListener('click', () => showScreen(screenHome));
-btnMenuBack?.addEventListener('click', () => showScreen(screenHome));
 
 btnLevelEasy?.addEventListener('click', () => { setLevel(LEVELS.easy); goGame(); startNewGame(); });
 btnLevelHard?.addEventListener('click', () => { setLevel(LEVELS.hard); goGame(); startNewGame(); });
@@ -275,7 +262,6 @@ btnLevelInsane?.addEventListener('click', () => { setLevel(LEVELS.insane); goGam
 
 btnRestart?.addEventListener('click', () => startNewGame());
 btnExit?.addEventListener('click', () => goMenu());
-btnHomeInGame?.addEventListener('click', () => showScreen(screenHome));
 
 // color swatches
 [  {btn: btnBallOrange, color:'#f97316'},
@@ -381,38 +367,16 @@ function update(dt) {
     ball.vx *= AIR_FRICTION * 0.985;
     ball.vy *= AIR_FRICTION;
 
-    if (!ball.scored) {
-      // Check if ball goes in or hits rim
-      const rimY = hoop.y;
-      const rimX = hoop.x;
-      const rimW = hoop.w;
-      const rimH = RIM_HEIGHT;
-      // Ball center
-      const bx = ball.x;
-      const by = ball.y;
-      // Ball goes in (center inside rim area, moving downward)
-      const inRim = (by - ball.r < rimY && by + ball.r > rimY && bx > rimX && bx < rimX + rimW && ball.vy > 0);
-      // Ball hits rim (edge overlaps rim area)
-      const hitsRim = (
-        by + ball.r > rimY - rimH/2 && by - ball.r < rimY + rimH/2 &&
-        bx + ball.r > rimX && bx - ball.r < rimX + rimW && ball.vy > 0
-      );
-      // Ball hits backboard outside rim
-      const backboardX = rimX + rimW/2 - 70;
-      const backboardY = rimY - 60;
-      const backboardW = 140;
-      const backboardH = 80;
-      const hitsBackboard = (
-        bx > backboardX && bx < backboardX + backboardW &&
-        by > backboardY && by < backboardY + backboardH &&
-        !(bx > rimX && bx < rimX + rimW && by > rimY - rimH/2 && by < rimY + rimH/2)
-      );
-      if ((inRim || hitsRim) && !hitsBackboard) {
-        ball.scored = true;
-        score += 2;
-        message = 'Nice shot!';
-        messageTimer = 1.2;
-      }
+    if (!ball.scored &&
+        ball.y - ball.r < hoop.y &&
+        ball.y + ball.r > hoop.y &&
+        ball.x > hoop.x &&
+        ball.x < hoop.x + hoop.w &&
+        ball.vy > 0) {
+      ball.scored = true;
+      score += 2;
+      message = 'Nice shot!';
+      messageTimer = 1.2;
     }
 
     if (ball.y + ball.r > FLOOR_Y) {
@@ -430,66 +394,50 @@ function update(dt) {
 // Drawing
 // ---------------------------
 function drawCourtBackground() {
-  // Use Game_Background.png as background
-  if (gameBackgroundImg.complete && gameBackgroundImg.naturalWidth > 0) {
-    ctx.drawImage(gameBackgroundImg, 0, 0, canvas.width, canvas.height);
-  } else {
-    // Fallback to gradient if image not loaded
-    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    gradient.addColorStop(0, '#111827');
-    gradient.addColorStop(0.6, '#020617');
-    gradient.addColorStop(1, '#0b1120');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#1e293b';
-    ctx.fillRect(0, FLOOR_Y, canvas.width, canvas.height - FLOOR_Y);
+  const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  gradient.addColorStop(0, '#111827');
+  gradient.addColorStop(0.6, '#020617');
+  gradient.addColorStop(1, '#0b1120');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#1e293b';
+  ctx.fillRect(0, FLOOR_Y, canvas.width, canvas.height - FLOOR_Y);
 
-    ctx.strokeStyle = 'rgba(148, 163, 184, 0.5)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(0, FLOOR_Y);
-    ctx.lineTo(canvas.width, FLOOR_Y);
-    ctx.stroke();
-  }
+  ctx.strokeStyle = 'rgba(148, 163, 184, 0.5)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, FLOOR_Y);
+  ctx.lineTo(canvas.width, FLOOR_Y);
+  ctx.stroke();
 }
 
 function drawHoop() {
-  // Use Asset 2.png as the rim
-  if (asset2Img.complete && asset2Img.naturalWidth > 0) {
-    const rimWidth = hoop.w;
-    const rimHeight = 100; // Adjust height as needed
-    const rimX = hoop.x;
-    const rimY = hoop.y - rimHeight / 2;
-    ctx.drawImage(asset2Img, rimX, rimY, rimWidth, rimHeight);
-  } else {
-    // Fallback to drawn hoop if image not loaded
-    const backboardWidth = 140;
-    const backboardHeight = 80;
-    const backboardX = hoop.x + hoop.w / 2 - backboardWidth / 2;
-    const backboardY = hoop.y - backboardHeight / 2 - 20;
-    ctx.fillStyle = '#e5e7eb';
-    ctx.fillRect(backboardX, backboardY, backboardWidth, backboardHeight);
-    ctx.strokeStyle = '#f97316';
-    ctx.lineWidth = 3;
-    ctx.strokeRect(backboardX + 40, backboardY + 25, backboardWidth - 80, backboardHeight - 50);
-    ctx.strokeStyle = '#f97316';
-    ctx.lineWidth = 6;
+  const backboardWidth = 140;
+  const backboardHeight = 80;
+  const backboardX = hoop.x + hoop.w / 2 - backboardWidth / 2;
+  const backboardY = hoop.y - backboardHeight / 2 - 20;
+  ctx.fillStyle = '#e5e7eb';
+  ctx.fillRect(backboardX, backboardY, backboardWidth, backboardHeight);
+  ctx.strokeStyle = '#f97316';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(backboardX + 40, backboardY + 25, backboardWidth - 80, backboardHeight - 50);
+  ctx.strokeStyle = '#f97316';
+  ctx.lineWidth = 6;
+  ctx.beginPath();
+  ctx.arc(hoop.x + hoop.w / 2, hoop.y, hoop.w / 2, 0, Math.PI, false);
+  ctx.stroke();
+  const netTopY = hoop.y + 4;
+  const netBottomY = hoop.y + 40;
+  ctx.strokeStyle = 'rgba(248, 250, 252, 0.8)';
+  ctx.lineWidth = 1.5;
+  for (let i = 0; i <= 6; i++) {
+    const t = i / 6;
+    const x = hoop.x + t * hoop.w;
+    const bottomX = hoop.x + hoop.w / 2 + (t - 0.5) * 20;
     ctx.beginPath();
-    ctx.arc(hoop.x + hoop.w / 2, hoop.y, hoop.w / 2, 0, Math.PI, false);
+    ctx.moveTo(x, netTopY);
+    ctx.lineTo(bottomX, netBottomY);
     ctx.stroke();
-    const netTopY = hoop.y + 4;
-    const netBottomY = hoop.y + 40;
-    ctx.strokeStyle = 'rgba(248, 250, 252, 0.8)';
-    ctx.lineWidth = 1.5;
-    for (let i = 0; i <= 6; i++) {
-      const t = i / 6;
-      const x = hoop.x + t * hoop.w;
-      const bottomX = hoop.x + hoop.w / 2 + (t - 0.5) * 20;
-      ctx.beginPath();
-      ctx.moveTo(x, netTopY);
-      ctx.lineTo(bottomX, netBottomY);
-      ctx.stroke();
-    }
   }
 }
 
@@ -539,6 +487,7 @@ function drawHUD() {
   ctx.fillStyle = '#cbd5e1';
   ctx.font = '18px system-ui';
   ctx.fillText(currentLevel.name, canvas.width / 2, 22);
+<<<<<<< HEAD
 
   // Draw shot meter
   if (shotMeterActive) {
@@ -562,6 +511,18 @@ function drawHUD() {
     ctx.fillText('TIMING', canvas.width / 2, meterY - 25);
   }
 
+=======
+  if (gameState === 'playing') {
+    ctx.textAlign = 'center';
+    ctx.font = '16px system-ui';
+    ctx.fillStyle = '#9ca3af';
+    ctx.fillText(
+      'Move your hand to control the ball. Flick your hand upwards to shoot!',
+      canvas.width / 2,
+      canvas.height - 70
+    );
+  }
+>>>>>>> 1f69c7ea5b0a4090c4ee2794f016978dc13387aa
   if (message) {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -625,6 +586,7 @@ function loop(timestamp) {
 // make sure first screen matches markup
 showScreen(screenHome);
 startCamera().catch(console.error);
+<<<<<<< HEAD
 
 // Load background images
 gameBackgroundImg.src = './Game_Background.png';
@@ -641,4 +603,6 @@ window.BallColors = {
   purple: '#8b5cf6'
 };
 
+=======
+>>>>>>> 1f69c7ea5b0a4090c4ee2794f016978dc13387aa
 requestAnimationFrame(loop);
