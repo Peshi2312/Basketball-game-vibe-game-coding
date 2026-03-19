@@ -1,19 +1,6 @@
-﻿const video = document.getElementById('webcam');
+const video = document.getElementById('webcam');
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
-
-// Make canvas full screen
-function resizeCanvas() {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-  FLOOR_Y = canvas.height - 40;
-  // Adjust hoop position proportionally
-  hoop.x = canvas.width * 0.7;
-  hoopBase.x = hoop.x;
-}
-
-window.addEventListener('resize', resizeCanvas);
-resizeCanvas();
 
 // Screens / navigation
 const screenHome = document.getElementById('screenHome');
@@ -67,7 +54,7 @@ function adjustColor(col, amt) {
 // ---------------------------
 // Game state
 // ---------------------------
-let FLOOR_Y = canvas.height - 40;
+const FLOOR_Y = canvas.height - 40;
 
 let ball = {
   x: canvas.width * 0.25,
@@ -366,17 +353,9 @@ function update(dt) {
 // Drawing
 // ---------------------------
 function drawCourtBackground() {
-  // Choose background image based on level
-  let bgImg;
-  if (currentLevel.id === 'easy') {
-    bgImg = gameBackgroundImg;
-  } else {
-    bgImg = asset2Img;
-  }
-
-  // Draw background image
-  if (bgImg.complete && bgImg.naturalWidth > 0) {
-    ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
+  // Use Game_Background.png as background
+  if (gameBackgroundImg.complete && gameBackgroundImg.naturalWidth > 0) {
+    ctx.drawImage(gameBackgroundImg, 0, 0, canvas.width, canvas.height);
   } else {
     // Fallback to gradient if image not loaded
     const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
@@ -385,8 +364,6 @@ function drawCourtBackground() {
     gradient.addColorStop(1, '#0b1120');
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    // Draw floor for gradient background
     ctx.fillStyle = '#1e293b';
     ctx.fillRect(0, FLOOR_Y, canvas.width, canvas.height - FLOOR_Y);
 
@@ -400,15 +377,15 @@ function drawCourtBackground() {
 }
 
 function drawHoop() {
-  // Draw rim using Asset 2.png
+  // Use Asset 2.png as the rim
   if (asset2Img.complete && asset2Img.naturalWidth > 0) {
     const rimWidth = hoop.w;
-    const rimHeight = 50; // Adjust as needed
+    const rimHeight = 50; // Adjust height as needed
     const rimX = hoop.x;
     const rimY = hoop.y - rimHeight / 2;
     ctx.drawImage(asset2Img, rimX, rimY, rimWidth, rimHeight);
   } else {
-    // Fallback to original drawing
+    // Fallback to drawn hoop if image not loaded
     const backboardWidth = 140;
     const backboardHeight = 80;
     const backboardX = hoop.x + hoop.w / 2 - backboardWidth / 2;
