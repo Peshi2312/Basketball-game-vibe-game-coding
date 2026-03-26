@@ -1,316 +1,357 @@
-﻿const video = document.getElementById('webcam');
+const video = document.getElementById('webcam');
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
 // ---------------------------
-// ASSETS
+// Screens (match index.html)
 // ---------------------------
-const hoopImg = new Image();
-hoopImg.src = 'Asset 2.png';
-let hoopImgReady = false;
-hoopImg.onload = () => {
-  hoopImgReady = true;
-};
-hoopImg.onerror = () => {
-  hoopImgReady = false;
-};
-
-// ---------------------------
-// SCREENS / NAVIGATION (matches index.html)
-// ---------------------------
+const screenHome = document.getElementById('screenHome');
 const screenMenu = document.getElementById('screenMenu');
+const screenBalls = document.getElementById('screenBalls');
+const screenHowToPlay = document.getElementById('screenHowToPlay');
 const screenAbout = document.getElementById('screenAbout');
 const screenGame = document.getElementById('screenGame');
 
-const btnHome = document.getElementById('btnHome');
-const btnAbout = document.getElementById('btnAbout');
+function showScreen(el) {
+  for (const s of [screenHome, screenMenu, screenBalls, screenHowToPlay, screenAbout, screenGame]) {
+    if (s) s.classList.remove('screen-active');
+  }
+  el?.classList.add('screen-active');
+
+  // Switch music based on the active screen
+  updateMusicForScreen(el);
+}
+
+// ---------------------------
+// Music
+// ---------------------------
+const bgMusic = document.getElementById('bgMusic');
+const gameMusic = document.getElementById('gameMusic');
+
+let audioUnlocked = false;
+let desiredTrack = 'bg'; // 'bg' | 'game'
+
+const BG_MUSIC_SRC =
+  '../[No Copyright Background Music] Bouncy Dynamic Retro Electro Beat  Trespass by HiLau - Free To Use — royalty free music, no copyright (youtube).mp3';
+const GAME_MUSIC_SRC = '../Techno - The OOOOOO song - juissi90 (youtube).mp3';
+
+if (bgMusic) bgMusic.src = encodeURI(BG_MUSIC_SRC);
+if (gameMusic) gameMusic.src = encodeURI(GAME_MUSIC_SRC);
+
+function safePause(audio) {
+  try {
+    audio?.pause();
+  } catch {
+    // ignore
+  }
+}
+
+async function safePlay(audio) {
+  if (!audio) return false;
+  try {
+    await audio.play();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function unlockAudio() {
+  if (audioUnlocked) return;
+  audioUnlocked = true;
+
+  // Try starting the background music first (usually allowed after user gesture)
+  desiredTrack = desiredTrack || 'bg';
+  if (desiredTrack === 'game') {
+    safePause(bgMusic);
+    await safePlay(gameMusic);
+  } else {
+    safePause(gameMusic);
+    await safePlay(bgMusic);
+  }
+}
+
+function updateMusicForScreen(activeEl) {
+  // If audio is not unlocked yet, remember what we want.
+  if (!audioUnlocked) {
+    desiredTrack = activeEl === screenGame ? 'game' : 'bg';
+    return;
+  }
+
+  if (activeEl === screenGame) {
+    desiredTrack = 'game';
+    safePause(bgMusic);
+    safePlay(gameMusic);
+  } else {
+    desiredTrack = 'bg';
+    safePause(gameMusic);
+    safePlay(bgMusic);
+  }
+}
+
+// Unlock audio on the first user interaction (browser autoplay policy)
+document.addEventListener('pointerdown', unlockAudio, { once: true });
+document.addEventListener('keydown', unlockAudio, { once: true });
+
+// Buttons
+const btnHomeStart = document.getElementById('btnHomeStart');
+const btnBallColor = document.getElementById('btnBallColor');
+const btnHomeHowToPlay = document.getElementById('btnHomeHowToPlay');
+const btnHomeAbout = document.getElementById('btnHomeAbout');
+const btnMenuBack = document.getElementById('btnMenuBack');
+const btnBallsBack = document.getElementById('btnBallsBack');
+const btnBackFromHowToPlay = document.getElementById('btnBackFromHowToPlay');
 const btnBackFromAbout = document.getElementById('btnBackFromAbout');
 const btnLevelEasy = document.getElementById('btnLevelEasy');
 const btnLevelHard = document.getElementById('btnLevelHard');
 const btnLevelInsane = document.getElementById('btnLevelInsane');
 const btnRestart = document.getElementById('btnRestart');
+const btnHomeInGame = document.getElementById('btnHomeInGame');
 const btnExit = document.getElementById('btnExit');
 
-function showScreen(el) {
-  for (const s of [screenMenu, screenAbout, screenGame]) {
-    if (s) s.classList.remove('screen-active');
-  }
-  el?.classList.add('screen-active');
-}
-
-function goMenu() {
-  gameState = 'menu';
-  showScreen(screenMenu);
-}
-
-function goAbout() {
-  showScreen(screenAbout);
-}
-
-function goGame() {
-  showScreen(screenGame);
-}
-
-btnHome?.addEventListener('click', goMenu);
-btnAbout?.addEventListener('click', goAbout);
-btnBackFromAbout?.addEventListener('click', goMenu);
-btnExit?.addEventListener('click', goMenu);
+btnHomeStart?.addEventListener('click', () => showScreen(screenMenu));
+btnBallColor?.addEventListener('click', () => showScreen(screenBalls));
+btnHomeHowToPlay?.addEventListener('click', () => showScreen(screenHowToPlay));
+btnHomeAbout?.addEventListener('click', () => showScreen(screenAbout));
+btnMenuBack?.addEventListener('click', () => showScreen(screenHome));
+btnBallsBack?.addEventListener('click', () => showScreen(screenHome));
+btnBackFromHowToPlay?.addEventListener('click', () => showScreen(screenHome));
+btnBackFromAbout?.addEventListener('click', () => showScreen(screenHome));
+btnHomeInGame?.addEventListener('click', () => showScreen(screenHome));
+btnExit?.addEventListener('click', () => showScreen(screenMenu));
 
 // ---------------------------
-// PERFORMANCE + FEEL
+// Assets
+// ---------------------------
+const bgImg = new Image();
+bgImg.src = 'Game_Background.png';
+let bgImgReady = false;
+bgImg.onload = () => (bgImgReady = true);
+bgImg.onerror = () => (bgImgReady = false);
+
+const hoopImg = new Image();
+hoopImg.src = 'Asset 2.png';
+let hoopImgReady = false;
+hoopImg.onload = () => (hoopImgReady = true);
+hoopImg.onerror = () => (hoopImgReady = false);
+
+// ---------------------------
+// Levels + ball colors (exposed for index.html fallback script)
+// ---------------------------
+const Levels = {
+  easy: { id: 'easy', name: 'Easy', rimSpeed: 0, rimWidth: 230 },
+  hard: { id: 'hard', name: 'Hard', rimSpeed: 1.6, rimWidth: 180 },
+  insane: { id: 'insane', name: 'Insane', rimSpeed: 3.0, rimWidth: 120 },
+};
+
+const BallColors = {
+  orange: '#f97316',
+  blue: '#3b82f6',
+  green: '#10b981',
+  red: '#ef4444',
+  yellow: '#fbbf24',
+  purple: '#8b5cf6',
+};
+
+window.Levels = Levels;
+window.BallColors = BallColors;
+
+let currentLevel = Levels.easy;
+let currentBallColor = BallColors.orange;
+
+window.setLevel = function setLevel(level) {
+  currentLevel = level || Levels.easy;
+  hoop.w = currentLevel.rimWidth;
+};
+
+window.setBallColor = function setBallColor(color) {
+  currentBallColor = color || BallColors.orange;
+};
+
+// ---------------------------
+// Performance / tracking
 // ---------------------------
 const SMOOTHING = 0.55;
-
-// Throttle hand tracking so it doesn't lag
 let lastHandProcess = 0;
 let handsBusy = false;
 const HAND_FPS = 24;
 const HAND_INTERVAL_MS = 1000 / HAND_FPS;
 
 // ---------------------------
-// GAME STATE
+// Game state
 // ---------------------------
 const FLOOR_Y = canvas.height - 40;
+const GRAVITY = 0.8;
 
-let ball = {
-  x: 200,
-  y: FLOOR_Y - 30,
-  r: 22,
-  vx: 0,
-  vy: 0,
-};
+let ball = { x: 200, y: FLOOR_Y - 30, r: 22, vx: 0, vy: 0 };
+// Small offset left for the rim
+const HOOP_BASE_X = 690;
+let hoop = { x: HOOP_BASE_X, y: 200, w: currentLevel.rimWidth };
 
-let hoop = {
-  x: 700,
-  y: 200,
-  w: 120,
-  h: RIM_HEIGHT,
-};
+// Hoop image layout
+const HOOP_IMG_SCALE = 0.55;
+const HOOP_IMG_W = 474 * HOOP_IMG_SCALE;
+const HOOP_IMG_H = 402 * HOOP_IMG_SCALE;
+const HOOP_RIM_Y_OFFSET = 200 * HOOP_IMG_SCALE;
 
 let score = 0;
 let timeLeft = 60;
 let gameRunning = false;
-let gameState = 'menu'; // 'menu' | 'playing' | 'gameover'
 let holdingBall = true;
 let ballScored = false;
-
-const LEVELS = {
-  easy: { speed: 0, width: 230 },
-  hard: { speed: 1.6, width: 180 },
-  insane: { speed: 3.0, width: 120 }
-};
-
-let currentLevel = LEVELS.easy;
 let hoopPhase = 0;
+let message = '';
+let messageTimer = 0;
+
+function resetBall() {
+  ball.x = 200;
+  ball.y = FLOOR_Y - 30;
+  ball.vx = 0;
+  ball.vy = 0;
+  holdingBall = true;
+  ballScored = false;
+  message = '';
+  messageTimer = 0;
+}
 
 // ---------------------------
-// HAND TRACKING
+// Hand tracking (MediaPipe)
 // ---------------------------
 let handX = 0.5, handY = 0.5, handVisible = false;
-let lastX = canvas.width/2, lastY = canvas.height/2;
-let speedX=0, speedY=0;
-let pinch=false, prevPinch=false;
+let lastX = canvas.width / 2, lastY = canvas.height / 2;
+let speedX = 0, speedY = 0;
+let pinch = false, prevPinch = false;
 
 const hands = new Hands({
-  locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+  locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`,
 });
 
 hands.setOptions({
-  maxNumHands:1,
-  modelComplexity:0,
-  minDetectionConfidence:0.7,
-  minTrackingConfidence:0.7
+  maxNumHands: 1,
+  modelComplexity: 0,
+  minDetectionConfidence: 0.7,
+  minTrackingConfidence: 0.7,
 });
 
-hands.onResults(r=>{
+hands.onResults((r) => {
   prevPinch = pinch;
-  // Hysteresis: once pinching, require larger distance to unpinch
   let nextPinch = false;
-  handVisible=false;
+  handVisible = false;
 
-  if(r.multiHandLandmarks?.length){
+  if (r.multiHandLandmarks?.length) {
     const lm = r.multiHandLandmarks[0];
     handX = lm[0].x;
     handY = lm[0].y;
-    handVisible=true;
+    handVisible = true;
 
-    const d = Math.hypot(
-      lm[4].x - lm[8].x,
-      lm[4].y - lm[8].y
-    );
+    const d = Math.hypot(lm[4].x - lm[8].x, lm[4].y - lm[8].y);
     const PINCH_CLOSE = 0.055;
     const PINCH_OPEN = 0.075;
-    if (prevPinch) {
-      nextPinch = d < PINCH_OPEN;
-    } else {
-      nextPinch = d < PINCH_CLOSE;
-    }
+    nextPinch = prevPinch ? d < PINCH_OPEN : d < PINCH_CLOSE;
   }
+
   pinch = nextPinch;
 });
 
-// ---------------------------
-// CAMERA
-// ---------------------------
-async function startCamera(){
+async function startCamera() {
   const stream = await navigator.mediaDevices.getUserMedia({
-    video:{width:480,height:360}
+    video: { width: 480, height: 360 },
+    audio: false,
   });
   video.srcObject = stream;
 
-  const cam = new Camera(video,{
-    onFrame: async ()=>{
+  const cam = new Camera(video, {
+    onFrame: async () => {
       const now = performance.now();
       if (handsBusy) return;
-      if(now-lastHandProcess>HAND_INTERVAL_MS){
+      if (now - lastHandProcess > HAND_INTERVAL_MS) {
         handsBusy = true;
-        await hands.send({image:video});
+        await hands.send({ image: video });
         handsBusy = false;
         lastHandProcess = now;
       }
-    }
+    },
   });
+
   cam.start();
 }
 
 // ---------------------------
-// GAME
+// Game control
 // ---------------------------
-function startGame(level){
-  currentLevel = LEVELS[level];
-  hoop.w = currentLevel.width;
-  score=0;
-  timeLeft=60;
-  gameRunning=true;
-  gameState = 'playing';
-  holdingBall = true;
-  ball.vx = 0;
-  ball.vy = 0;
-  ball.scored = false;
-  holdingBall = true;
-}
-
-function startNewGame() {
+function startGame() {
   score = 0;
-  timeLeft = levelTime;
-  gameState = 'playing';
-  message = '';
-  messageTimer = 0;
+  timeLeft = 60;
+  gameRunning = true;
   hoopPhase = 0;
+  hoop.w = currentLevel.rimWidth;
   resetBall();
+  showScreen(screenGame);
 }
 
-document.addEventListener('keydown', (e) => {
-  if (e.code === 'Space') {
-    if (gameState === 'menu' || gameState === 'gameover') {
-      startNewGame();
-    }
-  } else if (e.code === 'Escape') {
-    // let player back out to main menu from anywhere
-    goMenu();
-  }
-});
+window.startGame = startGame;
 
-function showScreen(which) {
-  const all = [screenHome, screenMenu, screenBalls, screenHowToPlay, screenAbout, screenGame];
-  for (const el of all) {
-    if (!el) continue;
-    el.classList.remove('screen-active');
-  }
-  which?.classList.add('screen-active');
-}
+btnLevelEasy?.addEventListener('click', () => { window.setLevel(Levels.easy); startGame(); });
+btnLevelHard?.addEventListener('click', () => { window.setLevel(Levels.hard); startGame(); });
+btnLevelInsane?.addEventListener('click', () => { window.setLevel(Levels.insane); startGame(); });
+btnRestart?.addEventListener('click', () => startGame());
 
-function goMenu() { gameState = 'menu'; showScreen(screenMenu); }
-function goAbout() { showScreen(screenAbout); }
-function goGame() { showScreen(screenGame); }
-
-function setLevel(level) {
-  currentLevel = level;
-  levelTime = 60;
-  hoopBase = { x: canvas.width * 0.7, y: 200 };
-  hoop.h = 8;
-  hoop.x = hoopBase.x;
-  hoop.y = hoopBase.y;
-  if (level.id === 'easy') {
-    hoop.w = RIM_WIDTH_EASY;
-  } else if (level.id === 'hard') {
-    hoop.w = RIM_WIDTH_HARD;
-  } else {
-    hoop.w = RIM_WIDTH_INSANE;
-  }
-  // Keep rim thickness consistent with collision checks
-  hoop.h = RIM_HEIGHT;
-}
-// make available for inline fallback
-window.setLevel = setLevel;
-window.startGame = () => { goGame(); startNewGame(); };
-
-btnHomeStart?.addEventListener('click', () => showScreen(screenMenu));
-btnBallColor?.addEventListener('click', () => showScreen(screenBalls));
-btnHomeHowToPlay?.addEventListener('click', () => showScreen(screenHowToPlay));
-btnHomeAbout?.addEventListener('click', () => showScreen(screenAbout));
-btnBackFromHowToPlay?.addEventListener('click', () => showScreen(screenHome));
-btnBackFromAbout?.addEventListener('click', () => showScreen(screenHome));
-btnBallsBack?.addEventListener('click', () => showScreen(screenHome));
-btnMenuBack?.addEventListener('click', () => showScreen(screenHome));
-
-btnLevelEasy?.addEventListener('click', () => { setLevel(LEVELS.easy); goGame(); startNewGame(); });
-btnLevelHard?.addEventListener('click', () => { setLevel(LEVELS.hard); goGame(); startNewGame(); });
-btnLevelInsane?.addEventListener('click', () => { setLevel(LEVELS.insane); goGame(); startNewGame(); });
-
-btnRestart?.addEventListener('click', () => startNewGame());
-btnExit?.addEventListener('click', () => goMenu());
-btnHomeInGame?.addEventListener('click', () => showScreen(screenHome));
-
-// color swatches
-[  {btn: btnBallOrange, color:'#f97316'},
-  {btn: btnBallBlue, color:'#3b82f6'},
-  {btn: btnBallGreen, color:'#10b981'},
-  {btn: btnBallRed, color:'#ef4444'},
-  {btn: btnBallYellow, color:'#fbbf24'},
-  {btn: btnBallPurple, color:'#8b5cf6'}
-].forEach(({btn,color})=>{
-  btn?.addEventListener('click', () => {
-    setBallColor(color);
-    // immediately start using current level (defaults to easy)
-    goGame();
-    startNewGame();
+function bindBallButton(id, color) {
+  const el = document.getElementById(id);
+  el?.addEventListener('click', () => {
+    window.setBallColor(color);
+    startGame();
   });
-});
+}
+bindBallButton('btnBallOrange', BallColors.orange);
+bindBallButton('btnBallBlue', BallColors.blue);
+bindBallButton('btnBallGreen', BallColors.green);
+bindBallButton('btnBallRed', BallColors.red);
+bindBallButton('btnBallYellow', BallColors.yellow);
+bindBallButton('btnBallPurple', BallColors.purple);
 
 // ---------------------------
-// UPDATE
+// Update + draw
 // ---------------------------
-function update(dt){
-  if(!gameRunning) return;
+function update(dt) {
+  if (!gameRunning) return;
+
+  if (messageTimer > 0) {
+    messageTimer -= dt;
+    if (messageTimer <= 0) {
+      messageTimer = 0;
+      message = '';
+    }
+  }
 
   timeLeft -= dt;
-  if(timeLeft<=0) gameRunning=false;
+  if (timeLeft <= 0) {
+    timeLeft = 0;
+    gameRunning = false;
+  }
 
-  hoopPhase+=dt;
-  hoop.x = 700 + Math.sin(hoopPhase*currentLevel.speed)*100;
+  hoopPhase += dt;
+  hoop.x = HOOP_BASE_X + Math.sin(hoopPhase * currentLevel.rimSpeed) * 100;
 
-  // Hand follow (holding) + reliable pinch-shoot
-  if(handVisible){
-    const tx=(1-handX)*canvas.width; // inverted left-right
-    const ty=handY*canvas.height;
+  if (handVisible) {
+    const tx = (1 - handX) * canvas.width; // inverted left-right
+    const ty = handY * canvas.height;
 
     const prevLX = lastX;
     const prevLY = lastY;
-    lastX += (tx-lastX)*SMOOTHING;
-    lastY += (ty-lastY)*SMOOTHING;
+    lastX += (tx - lastX) * SMOOTHING;
+    lastY += (ty - lastY) * SMOOTHING;
 
     speedX = lastX - prevLX;
     speedY = lastY - prevLY;
 
     if (holdingBall) {
-      ball.x += (tx-ball.x)*0.35;
-      ball.y += (ty-ball.y)*0.55;
+      ball.x += (tx - ball.x) * 0.35;
+      ball.y += (ty - ball.y) * 0.55;
 
       const pinchJustStarted = pinch && !prevPinch;
       const speed = Math.hypot(speedX, speedY);
 
-      // Shoot whenever pinch is detected (much less strict)
       if (pinchJustStarted && speed > 1.5) {
         holdingBall = false;
         ballScored = false;
@@ -319,7 +360,6 @@ function update(dt){
         const rawVx = speedX * 1.2;
         ball.vx = Math.max(-maxSide, Math.min(maxSide, rawVx));
 
-        // Always shoot high in an arc (negative y is up)
         let rawVy = speedY * 2.0;
         if (rawVy > -12) rawVy = -18;
         ball.vy = Math.max(-30, Math.min(-12, rawVy));
@@ -327,54 +367,49 @@ function update(dt){
     }
   }
 
-  // Flight physics only after shooting
   if (!holdingBall) {
-    ball.vy += 0.8;
+    const prevY = ball.y;
+    ball.vy += GRAVITY;
     ball.x += ball.vx;
     ball.y += ball.vy;
-    ball.vx *= AIR_FRICTION * 0.985;
-    ball.vy *= AIR_FRICTION;
 
-    if (!ball.scored) {
-      // Check if ball goes in or hits rim
-      const rimY = hoop.y;
-      const rimX = hoop.x;
-      const rimW = hoop.w;
-      const rimH = hoop.h;
-      // Ball center
-      const bx = ball.x;
-      const by = ball.y;
-      // Ball goes in (center inside rim area, moving downward)
-      const inRim = (by - ball.r < rimY && by + ball.r > rimY && bx > rimX && bx < rimX + rimW && ball.vy > 0);
-      // Ball hits rim (edge overlaps rim area)
-      const hitsRim = (
-        by + ball.r > rimY - rimH/2 && by - ball.r < rimY + rimH/2 &&
-        bx + ball.r > rimX && bx - ball.r < rimX + rimW && ball.vy > 0
-      );
-      // Ball hits backboard outside rim
-      const backboardX = rimX + rimW/2 - 70;
-      const backboardY = rimY - 60;
-      const backboardW = 140;
-      const backboardH = 80;
-      const hitsBackboard = (
-        bx > backboardX && bx < backboardX + backboardW &&
-        by > backboardY && by < backboardY + backboardH &&
-        !(bx > rimX && bx < rimX + rimW && by > rimY - rimH/2 && by < rimY + rimH/2)
-      );
-      if ((inRim || hitsRim) && !hitsBackboard) {
-        ball.scored = true;
+    if (
+      !ballScored &&
+      ball.vy > 0 &&
+      // Require the ball to cross the rim line (above -> below)
+      prevY < hoop.y &&
+      ball.y + ball.r >= hoop.y
+    ) {
+      // Tighten the scoring window to rim/hole area
+      const rimXLeft = hoop.x + hoop.w * 0.08;
+      const rimXRight = hoop.x + hoop.w * 0.92;
+      const openingPad = hoop.w * 0.28; // smaller window for "go in"
+      const openingLeft = hoop.x + openingPad;
+      const openingRight = hoop.x + hoop.w - openingPad;
+
+      const crossedXInRim = ball.x >= rimXLeft && ball.x <= rimXRight;
+      const crossedXInOpening = ball.x >= openingLeft && ball.x <= openingRight;
+
+      // Approx rim thickness band (since hoop is an image)
+      const rimBandTop = hoop.y - 4;
+      const rimBandBottom = hoop.y + 12;
+      const overlapsRimBand =
+        ball.y - ball.r <= rimBandBottom && ball.y + ball.r >= rimBandTop;
+
+      if (overlapsRimBand && crossedXInRim) {
         score += 2;
-        message = 'Nice shot!';
-        messageTimer = 1.2;
+        // Gold feedback text on successful scoring
+        message = "You've scored a point!";
+        messageTimer = 1.3;
+        ballScored = true;
       }
     }
+  }
 
-  if(ball.y>FLOOR_Y){
+  if (ball.y > FLOOR_Y) {
     ball.y = FLOOR_Y;
     ball.vy *= -0.4;
     ball.vx *= 0.85;
-
-    // Reset when it stops bouncing
     if (Math.abs(ball.vy) < 1 && Math.abs(ball.vx) < 0.8) {
       holdingBall = true;
       ball.vx = 0;
@@ -383,14 +418,7 @@ function update(dt){
   }
 }
 
-// ---------------------------
-// DRAW
-// ---------------------------
-function draw(){
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-
-  // ball
-  // Better looking ball (shaded + seams)
+function drawBall() {
   const g = ctx.createRadialGradient(
     ball.x - ball.r * 0.35,
     ball.y - ball.r * 0.35,
@@ -399,21 +427,18 @@ function draw(){
     ball.y,
     ball.r
   );
-  g.addColorStop(0, '#ffd7b0');
-  g.addColorStop(0.35, '#ff9f3a');
-  g.addColorStop(1, '#c2410c');
+  g.addColorStop(0, '#ffffff');
+  g.addColorStop(0.35, currentBallColor);
+  g.addColorStop(1, 'rgba(0,0,0,0.55)');
 
   ctx.beginPath();
   ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
   ctx.fillStyle = g;
   ctx.fill();
-
-  // outline
-  ctx.strokeStyle = 'rgba(15, 23, 42, 0.75)';
+  ctx.strokeStyle = 'rgba(15, 23, 42, 0.7)';
   ctx.lineWidth = 3;
   ctx.stroke();
 
-  // seams
   ctx.strokeStyle = 'rgba(17, 24, 39, 0.9)';
   ctx.lineWidth = 2;
   ctx.beginPath();
@@ -425,43 +450,65 @@ function draw(){
   ctx.beginPath();
   ctx.arc(ball.x, ball.y, ball.r * 0.92, 0, Math.PI);
   ctx.stroke();
+}
 
-  // hoop (image if loaded; fallback rectangle if not)
+function drawHoop() {
   if (hoopImgReady) {
-    // Draw centered on hoop.x + hoop.w/2, using hoop.y as the rim line reference
     const cx = hoop.x + hoop.w / 2;
     const imgX = cx - HOOP_IMG_W / 2;
     const imgY = hoop.y - HOOP_RIM_Y_OFFSET;
     ctx.drawImage(hoopImg, imgX, imgY, HOOP_IMG_W, HOOP_IMG_H);
   } else {
-    ctx.fillStyle="orange";
-    ctx.fillRect(hoop.x,hoop.y,hoop.w,10);
+    ctx.fillStyle = 'orange';
+    ctx.fillRect(hoop.x, hoop.y, hoop.w, 10);
   }
-
-  ctx.fillStyle="white";
-  ctx.font = "20px system-ui";
-  ctx.fillText("Score: "+score,20,30);
-  ctx.fillText("Time: "+Math.ceil(timeLeft),20,60);
 }
 
-// ---------------------------
-let last=0;
-function loop(t){
-  const dt=(t-last)/1000;
-  last=t;
+function drawHUD() {
+  ctx.fillStyle = 'white';
+  ctx.font = '20px system-ui';
+  ctx.fillText(`Score: ${score}`, 20, 30);
+  ctx.fillText(`Time: ${Math.ceil(timeLeft)}`, 20, 60);
+  ctx.fillText(currentLevel.name, 20, 90);
 
+  if (messageTimer > 0 && message) {
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#facc15'; // gold
+    ctx.font = '34px system-ui';
+    ctx.fillText(message, canvas.width / 2, 150);
+    ctx.textAlign = 'left';
+    ctx.font = '20px system-ui';
+    ctx.fillStyle = 'white';
+  }
+
+  if (!gameRunning) {
+    ctx.fillText('Time up! Press Restart.', 20, 120);
+  }
+}
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Background
+  if (bgImgReady) {
+    ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
+  }
+
+  drawHoop();
+  drawBall();
+  drawHUD();
+}
+
+let last = 0;
+function loop(t) {
+  const dt = (t - last) / 1000;
+  last = t;
   update(dt);
   draw();
-
   requestAnimationFrame(loop);
 }
 
-// ---------------------------
-startCamera();
+// Boot
+startCamera().catch(console.error);
 requestAnimationFrame(loop);
-showScreen(screenMenu);
-
-btnLevelEasy?.addEventListener('click', () => startGame('easy'));
-btnLevelHard?.addEventListener('click', () => startGame('hard'));
-btnLevelInsane?.addEventListener('click', () => startGame('insane'));
-btnRestart?.addEventListener('click', () => startGame(Object.keys(LEVELS).find(k => LEVELS[k] === currentLevel) || 'easy'));
+showScreen(screenHome);
