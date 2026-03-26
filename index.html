@@ -32,18 +32,19 @@
 
       <!-- Main Menu page (level selection) -->
       <section id="screenMenu" class="screen" aria-label="Main menu">
+        <div class="menu-background"></div>
         <button id="btnMenuBack" class="btn btn-ghost" type="button">&larr; Home</button>
-        <h1 class="title">Camera Basketball</h1>
-        <p class="subtitle">Raise your hand to start the shot meter, then pinch to release. Time it right to score.</p>
-
-        <div class="panel">
-          <div class="panel-title">Choose a level</div>
-          <div class="level-grid">
-            <button id="btnLevelEasy" class="btn btn-primary" type="button">Easy</button>
-            <button id="btnLevelHard" class="btn btn-primary" type="button">Hard (moving rim)</button>
-            <button id="btnLevelInsane" class="btn btn-primary" type="button">Insane (fast rim)</button>
-          </div>
-          <div class="hint">Tip: Keep your hand steady to aim. Pinch at the green window for a swish.</div>
+        
+        <div class="menu-cards-overlay">
+          <button id="btnLevelEasy" class="level-card-btn level-card-1" type="button">
+            <img src="Asset_1.png" alt="Easy" class="level-card-image"/>
+          </button>
+          <button id="btnLevelInsane" class="level-card-btn level-card-2" type="button">
+            <img src="Asset_6.png" alt="Legendary" class="level-card-image"/>
+          </button>
+          <button id="btnLevelHard" class="level-card-btn level-card-3" type="button">
+            <img src="Asset_3.png" alt="Hard" class="level-card-image"/>
+          </button>
         </div>
       </section>
 
