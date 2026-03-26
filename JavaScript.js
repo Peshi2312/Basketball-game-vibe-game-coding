@@ -135,6 +135,21 @@ let hoopImgReady = false;
 hoopImg.onload = () => (hoopImgReady = true);
 hoopImg.onerror = () => (hoopImgReady = false);
 
+// Score SFX (played when the ball scores)
+const swishSfx = new Audio('Basketball Swish 1.mp3');
+swishSfx.preload = 'auto';
+swishSfx.volume = 0.9;
+function playSwish() {
+  try {
+    swishSfx.currentTime = 0;
+    // play() might be blocked until the first user gesture; we ignore failures.
+    const p = swishSfx.play();
+    if (p && typeof p.catch === 'function') p.catch(() => {});
+  } catch {
+    // ignore
+  }
+}
+
 // ---------------------------
 // Levels + ball colors (exposed for index.html fallback script)
 // ---------------------------
@@ -398,6 +413,7 @@ function update(dt) {
 
       if (overlapsRimBand && crossedXInRim) {
         score += 2;
+        playSwish();
         // Gold feedback text on successful scoring
         message = "You've scored a point!";
         messageTimer = 1.3;
