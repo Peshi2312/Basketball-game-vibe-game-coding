@@ -155,8 +155,9 @@ function playSwish() {
 // ---------------------------
 const Levels = {
   easy: { id: 'easy', name: 'Easy', rimSpeed: 0, rimWidth: 230 },
-  hard: { id: 'hard', name: 'Hard', rimSpeed: 1.6, rimWidth: 180 },
-  insane: { id: 'insane', name: 'Insane', rimSpeed: 3.0, rimWidth: 120 },
+  // Display names only (we already swapped which physics maps to which button)
+  hard: { id: 'hard', name: 'Normal', rimSpeed: 1.6, rimWidth: 180 },
+  insane: { id: 'insane', name: 'Hard', rimSpeed: 3.0, rimWidth: 120 },
 };
 
 const BallColors = {
@@ -200,7 +201,7 @@ const GRAVITY = 0.8;
 
 let ball = { x: 200, y: FLOOR_Y - 30, r: 22, vx: 0, vy: 0 };
 // Small offset left for the rim
-const HOOP_BASE_X = 690;
+const HOOP_BASE_X = 680;
 let hoop = { x: HOOP_BASE_X, y: 200, w: currentLevel.rimWidth };
 
 // Hoop image layout
@@ -208,6 +209,7 @@ const HOOP_IMG_SCALE = 0.55;
 const HOOP_IMG_W = 474 * HOOP_IMG_SCALE;
 const HOOP_IMG_H = 402 * HOOP_IMG_SCALE;
 const HOOP_RIM_Y_OFFSET = 200 * HOOP_IMG_SCALE;
+const HOOP_RIM_Y_OFFSET_RATIO = HOOP_RIM_Y_OFFSET / HOOP_IMG_H;
 
 let score = 0;
 let timeLeft = 60;
@@ -307,8 +309,9 @@ function startGame() {
 window.startGame = startGame;
 
 btnLevelEasy?.addEventListener('click', () => { window.setLevel(Levels.easy); startGame(); });
-btnLevelHard?.addEventListener('click', () => { window.setLevel(Levels.hard); startGame(); });
-btnLevelInsane?.addEventListener('click', () => { window.setLevel(Levels.insane); startGame(); });
+// Swap Hard/Insane to match the labels in your level images
+btnLevelHard?.addEventListener('click', () => { window.setLevel(Levels.insane); startGame(); });
+btnLevelInsane?.addEventListener('click', () => { window.setLevel(Levels.hard); startGame(); });
 btnRestart?.addEventListener('click', () => startGame());
 
 function bindBallButton(id, color) {
@@ -472,8 +475,17 @@ function drawHoop() {
   if (hoopImgReady) {
     const cx = hoop.x + hoop.w / 2;
     const imgX = cx - HOOP_IMG_W / 2;
-    const imgY = hoop.y - HOOP_RIM_Y_OFFSET;
-    ctx.drawImage(hoopImg, imgX, imgY, HOOP_IMG_W, HOOP_IMG_H);
+    // Draw without stretching: preserve the image's real aspect ratio.
+    const naturalW = hoopImg.naturalWidth || 474;
+    const naturalH = hoopImg.naturalHeight || 402;
+    const aspect = naturalW / naturalH;
+    const drawW = HOOP_IMG_W;
+    const drawH = drawW / aspect;
+
+    const rimYOffset = HOOP_RIM_Y_OFFSET_RATIO * drawH;
+    const imgY = hoop.y - rimYOffset;
+
+    ctx.drawImage(hoopImg, imgX, imgY, drawW, drawH);
   } else {
     ctx.fillStyle = 'orange';
     ctx.fillRect(hoop.x, hoop.y, hoop.w, 10);

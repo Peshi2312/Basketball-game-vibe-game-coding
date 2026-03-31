@@ -106,11 +106,15 @@ body {
 }
 
 #screenMenu {
-  display: flex !important;
   flex-direction: column;
   position: relative;
   overflow: hidden;
   background: #0f172a;
+}
+
+/* Only show the menu when it's the active screen */
+#screenMenu.screen-active {
+  display: flex;
 }
 
 /* Full-screen background image */
@@ -484,6 +488,50 @@ body {
   background: rgba(2, 6, 23, 0.35);
   border-radius: 14px;
   padding: 14px;
+}
+
+.howto-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.howto-image {
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  max-height: 96.5vh; /* a bit bigger */
+  object-fit: contain; /* do not crop */
+  border-radius: 0;
+  border: 0;
+  box-shadow: none;
+  transform: translateY(1.8vh); /* slightly down, keep Back button visible */
+}
+
+/* Full-screen layout for the How to play screen */
+#screenHowToPlay .howto-wrap {
+  width: 100%;
+  height: 100vh;
+  justify-content: center;
+  gap: 12px;
+  padding: 12px 16px; /* keep some breathing room */
+}
+
+/* Black background behind the How-to image */
+#screenHowToPlay {
+  background: #000;
+  position: relative;
+}
+
+/* Move & scale the Back button (How to play) */
+#screenHowToPlay #btnBackFromHowToPlay {
+  position: absolute;
+  top: 18px;
+  left: 18px;
+  padding: 14px 18px;
+  font-size: 18px;
+  border-radius: 16px;
 }
 
 .about-lead {

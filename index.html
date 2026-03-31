@@ -104,14 +104,6 @@
                 <li><b>Score</b>: if the ball passes through the rim, you earn points.</li>
               </ul>
             </div>
-
-            <div class="about-block">
-              <h3 class="rich-heading">Levels</h3>
-              <p class="rich-text">
-                Pick a difficulty to change the challenge. Higher levels make the rim move faster, so you need
-                better timing and steadier throws.
-              </p>
-            </div>
           </div>
 
           <button id="btnBackFromAbout" class="btn btn-primary" type="button">Back</button>
@@ -120,40 +112,8 @@
 
       <!-- How to play page -->
       <section id="screenHowToPlay" class="screen" aria-label="How to play">
-        <h2 class="title-sm">How to play</h2>
-        <div class="panel">
-          <div class="how-grid">
-            <div class="how-step">
-              <h3 class="rich-heading">1) Move the ball</h3>
-              <p class="rich-text">
-                Move your hand left or right to position the ball. (It is slightly inverted, so move opposite if needed.)
-                Keep your hand in the camera view.
-              </p>
-            </div>
-
-            <div class="how-step">
-              <h3 class="rich-heading">2) Aim with your pinch</h3>
-              <p class="rich-text">
-                Pinch your thumb + index when you are ready to shoot. Hold the pinch for a moment, then flick upward.
-              </p>
-            </div>
-
-            <div class="how-step">
-              <h3 class="rich-heading">3) Score in the rim</h3>
-              <p class="rich-text">
-                When you release the ball, it will travel toward the hoop. If it passes through the rim, you score.
-              </p>
-            </div>
-
-            <div class="how-tips">
-              <h3 class="rich-heading">Quick tips</h3>
-              <ul class="list">
-                <li>Flick upward faster for stronger shots.</li>
-                <li>Try shooting near the center of the rim opening.</li>
-                <li>For harder levels, the rim moves more—watch it and adjust.</li>
-              </ul>
-            </div>
-          </div>
+        <div class="howto-wrap">
+          <img class="howto-image" src="Artboard_7.png" alt="How to play" />
           <button id="btnBackFromHowToPlay" class="btn btn-primary" type="button">Back</button>
         </div>
       </section>
@@ -238,10 +198,11 @@
         startLevel('easy');
       });
       on('btnLevelHard', function () {
-        startLevel('hard');
+        // Swap Hard/Insane to match your level image labels
+        startLevel('insane');
       });
       on('btnLevelInsane', function () {
-        startLevel('insane');
+        startLevel('hard');
       });
 
       // Ball choices -> set color then show game if game functions are available
